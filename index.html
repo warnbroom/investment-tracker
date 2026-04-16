@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Sổ Cái — Danh mục Đầu tư</title>
+<meta name="description" content="Quản lý và theo dõi danh mục đầu tư cá nhân: tiền gửi, quỹ mở, vàng." />
+<link rel="stylesheet" href="styles.css" />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='40' fill='%23b8471f'/%3E%3C/svg%3E" />
+</head>
+<body>
+
+<!-- Masthead -->
+<header class="masthead">
+  <div class="masthead-inner">
+    <a href="index.html" class="brand">
+      <span class="brand-mark"></span>
+      Sổ Cái <em>&mdash; portfolio</em>
+    </a>
+    <nav>
+      <ul class="nav-links">
+        <li><a href="index.html" class="active">Tổng quan</a></li>
+        <li><a href="entries.html">Nhập liệu</a></li>
+        <li><a href="analytics.html">Phân tích</a></li>
+      </ul>
+    </nav>
+    <div class="masthead-date" id="masthead-date">&mdash;</div>
+  </div>
+</header>
+
+<main>
+  <!-- Hero + Total -->
+  <section class="hero">
+    <div class="container">
+      <div class="hero-grid">
+        <div class="hero-title">
+          <div class="eyebrow">Niên giám · Ấn bản cá nhân</div>
+          <h1 class="display">Tài sản,<br/><em>theo từng mục.</em></h1>
+        </div>
+        <div class="hero-meta">
+          <div>Số mục ghi nhận<br/><strong id="entry-count">0</strong></div>
+          <div style="margin-top: 1rem;">Cập nhật gần nhất<br/><strong id="last-updated">—</strong></div>
+        </div>
+      </div>
+
+      <!-- The hero stat: total portfolio value -->
+      <div class="total-panel">
+        <div>
+          <div class="total-label">Tổng giá trị danh mục</div>
+          <div class="total-value">
+            <span id="total-value">0</span><span class="total-currency">VND</span>
+          </div>
+        </div>
+        <div class="total-delta">
+          <div class="total-delta-row">
+            <span class="total-delta-label">Vốn gốc</span>
+            <span class="num" id="total-principal">—</span>
+          </div>
+          <div class="total-delta-row">
+            <span class="total-delta-label">Lợi nhuận</span>
+            <span class="num" id="total-gain">—</span>
+          </div>
+          <div class="total-delta-row">
+            <span class="total-delta-label">Tỷ suất</span>
+            <span class="num" id="total-gain-pct">—</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- The three pillars -->
+  <section class="pillars">
+    <div class="container">
+      <div class="section-head">
+        <h2>Ba trụ cột <em>— phân bổ tài sản</em></h2>
+        <span class="section-head-meta">I · Phân bổ</span>
+      </div>
+
+      <div class="pillar-grid">
+        <div class="pillar">
+          <div class="pillar-num">№ 01</div>
+          <div class="pillar-name">Tiền gửi</div>
+          <div class="pillar-name-en">Bank deposits</div>
+          <div class="pillar-value" id="pillar-deposit-value">0<span class="num-currency">đ</span></div>
+          <div class="pillar-meta">
+            <span class="pillar-meta-label">Tỷ trọng</span>
+            <span class="pillar-meta-value" id="pillar-deposit-share">—</span>
+          </div>
+          <div class="pillar-meta" style="border-top: none; padding-top: 0; margin-top: 0.25rem;">
+            <span class="pillar-meta-label">Số hợp đồng</span>
+            <span class="pillar-meta-value" id="pillar-deposit-count">—</span>
+          </div>
+        </div>
+
+        <div class="pillar">
+          <div class="pillar-num">№ 02</div>
+          <div class="pillar-name">Quỹ mở</div>
+          <div class="pillar-name-en">Open-ended funds</div>
+          <div class="pillar-value" id="pillar-fund-value">0<span class="num-currency">đ</span></div>
+          <div class="pillar-meta">
+            <span class="pillar-meta-label">Tỷ trọng</span>
+            <span class="pillar-meta-value" id="pillar-fund-share">—</span>
+          </div>
+          <div class="pillar-meta" style="border-top: none; padding-top: 0; margin-top: 0.25rem;">
+            <span class="pillar-meta-label">Số chứng chỉ</span>
+            <span class="pillar-meta-value" id="pillar-fund-count">—</span>
+          </div>
+        </div>
+
+        <div class="pillar">
+          <div class="pillar-num">№ 03</div>
+          <div class="pillar-name">Vàng</div>
+          <div class="pillar-name-en">Gold holdings</div>
+          <div class="pillar-value" id="pillar-gold-value">0<span class="num-currency">đ</span></div>
+          <div class="pillar-meta">
+            <span class="pillar-meta-label">Tỷ trọng</span>
+            <span class="pillar-meta-value" id="pillar-gold-share">—</span>
+          </div>
+          <div class="pillar-meta" style="border-top: none; padding-top: 0; margin-top: 0.25rem;">
+            <span class="pillar-meta-label">Số giao dịch</span>
+            <span class="pillar-meta-value" id="pillar-gold-count">—</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Allocation bar -->
+      <div class="allocation">
+        <div class="alloc-title">
+          <h3>Thanh phân bổ trực quan</h3>
+          <span class="section-head-meta num" id="alloc-total">—</span>
+        </div>
+        <div class="alloc-bar" id="alloc-bar">
+          <div class="alloc-segment alloc-seg-deposit" style="flex: 1">—</div>
+        </div>
+        <div class="alloc-legend">
+          <div class="alloc-legend-item">
+            <span class="alloc-swatch" style="background: var(--ink);"></span>
+            Tiền gửi <span class="num" id="legend-deposit">0%</span>
+          </div>
+          <div class="alloc-legend-item">
+            <span class="alloc-swatch" style="background: var(--accent);"></span>
+            Quỹ mở <span class="num" id="legend-fund">0%</span>
+          </div>
+          <div class="alloc-legend-item">
+            <span class="alloc-swatch" style="background: var(--gold);"></span>
+            Vàng <span class="num" id="legend-gold">0%</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Recent entries -->
+  <section class="recent">
+    <div class="container">
+      <div class="section-head">
+        <h2>Sổ ghi chép <em>— giao dịch gần đây</em></h2>
+        <span class="section-head-meta">II · Nhật ký</span>
+      </div>
+
+      <div id="recent-wrap">
+        <!-- populated by JS -->
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="footer-inner">
+    <div>Sổ Cái <em>&mdash; một niên giám đầu tư cá nhân</em></div>
+    <div>Dữ liệu lưu cục bộ trên trình duyệt · v1.0</div>
+  </div>
+</footer>
+
+<script src="app.js"></script>
+<script>
+(function () {
+  const entries = loadEntries();
+  const s = computePortfolio(entries);
+
+  // Hero meta
+  document.getElementById('entry-count').textContent = s.count;
+  if (entries.length > 0) {
+    const latest = entries.reduce((a, b) =>
+      new Date(a.createdAt) > new Date(b.createdAt) ? a : b);
+    document.getElementById('last-updated').textContent = formatDate(latest.createdAt);
+  }
+
+  // Total panel
+  document.getElementById('total-value').textContent = formatMoney(s.totalValue);
+  document.getElementById('total-principal').textContent = formatMoney(s.totalPrincipal) + ' đ';
+
+  const gainEl = document.getElementById('total-gain');
+  gainEl.textContent = (s.totalGain >= 0 ? '+' : '') + formatMoney(s.totalGain) + ' đ';
+  gainEl.classList.add(s.totalGain >= 0 ? 'delta-positive' : 'delta-negative');
+
+  const pctEl = document.getElementById('total-gain-pct');
+  pctEl.textContent = formatPct(s.totalGainPct);
+  pctEl.classList.add(s.totalGainPct >= 0 ? 'delta-positive' : 'delta-negative');
+
+  // Pillars
+  ['deposit', 'fund', 'gold'].forEach(type => {
+    const t = s.byType[type];
+    document.getElementById(`pillar-${type}-value`).innerHTML =
+      formatMoney(t.value) + '<span class="num-currency">đ</span>';
+    document.getElementById(`pillar-${type}-share`).textContent = t.share.toFixed(1) + '%';
+    document.getElementById(`pillar-${type}-count`).textContent = t.count;
+  });
+
+  // Allocation bar
+  const bar = document.getElementById('alloc-bar');
+  if (s.totalValue > 0) {
+    bar.innerHTML = '';
+    const types = [
+      { key: 'deposit', cls: 'alloc-seg-deposit', label: 'Tiền gửi' },
+      { key: 'fund',    cls: 'alloc-seg-fund',    label: 'Quỹ mở'   },
+      { key: 'gold',    cls: 'alloc-seg-gold',    label: 'Vàng'     },
+    ];
+    types.forEach(t => {
+      const share = s.byType[t.key].share;
+      if (share <= 0) return;
+      const seg = document.createElement('div');
+      seg.className = 'alloc-segment ' + t.cls;
+      seg.style.flex = share.toFixed(3);
+      seg.textContent = share >= 6 ? share.toFixed(0) + '%' : '';
+      seg.title = `${t.label}: ${share.toFixed(1)}%`;
+      bar.appendChild(seg);
+    });
+    document.getElementById('alloc-total').textContent = formatMoney(s.totalValue) + ' đ · 100%';
+  } else {
+    bar.innerHTML = '<div style="flex:1; display:flex; align-items:center; justify-content:center; color:var(--ink-mute); font-family:var(--font-mono); font-size:0.75rem; letter-spacing:0.1em;">CHƯA CÓ DỮ LIỆU</div>';
+    document.getElementById('alloc-total').textContent = '—';
+  }
+
+  document.getElementById('legend-deposit').textContent = s.byType.deposit.share.toFixed(1) + '%';
+  document.getElementById('legend-fund').textContent = s.byType.fund.share.toFixed(1) + '%';
+  document.getElementById('legend-gold').textContent = s.byType.gold.share.toFixed(1) + '%';
+
+  // Recent entries table
+  const wrap = document.getElementById('recent-wrap');
+  if (entries.length === 0) {
+    wrap.innerHTML = `
+      <div class="empty-state">
+        <h3>Sổ còn trống.</h3>
+        <p>Bắt đầu bằng việc <a href="entries.html">ghi mục đầu tư đầu tiên</a>.</p>
+      </div>`;
+  } else {
+    const sorted = [...entries].sort((a, b) =>
+      new Date(b.createdAt) - new Date(a.createdAt)).slice(0, 10);
+
+    let html = `
+      <table class="ledger-table">
+        <thead>
+          <tr>
+            <th style="width: 110px;">Loại</th>
+            <th>Tên / Mô tả</th>
+            <th class="hide-mobile" style="width: 120px;">Ngày</th>
+            <th class="num-col" style="width: 140px;">Vốn gốc</th>
+            <th class="num-col" style="width: 150px;">Giá trị hiện tại</th>
+            <th class="num-col" style="width: 110px;">Lợi nhuận</th>
+          </tr>
+        </thead>
+        <tbody>`;
+    sorted.forEach(e => {
+      const v = computeEntryValues(e);
+      const name = e.name || typeLabel(e.type);
+      const date = e.startDate || e.createdAt;
+      const gainClass = v.gain >= 0 ? 'delta-positive' : 'delta-negative';
+      const gainSign = v.gain >= 0 ? '+' : '';
+      html += `
+        <tr>
+          <td><span class="type-tag ${e.type}">${typeLabel(e.type)}</span></td>
+          <td>${escapeHtml(name)}</td>
+          <td class="hide-mobile num-col" style="text-align:left; color:var(--ink-mute);">${formatDate(date)}</td>
+          <td class="num-col">${formatMoney(v.principal)}</td>
+          <td class="num-col">${formatMoney(v.currentValue)}</td>
+          <td class="num-col ${gainClass}">${gainSign}${formatPct(v.gainPct, false)}</td>
+        </tr>`;
+    });
+    html += '</tbody></table>';
+    wrap.innerHTML = html;
+  }
+
+  function escapeHtml(str) {
+    return String(str).replace(/[&<>"']/g, c => ({
+      '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+    })[c]);
+  }
+})();
+</script>
+
+</body>
+</html>

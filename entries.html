@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Nhập liệu — Sổ Cái</title>
+<link rel="stylesheet" href="styles.css" />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='40' fill='%23b8471f'/%3E%3C/svg%3E" />
+</head>
+<body>
+
+<header class="masthead">
+  <div class="masthead-inner">
+    <a href="index.html" class="brand">
+      <span class="brand-mark"></span>
+      Sổ Cái <em>&mdash; portfolio</em>
+    </a>
+    <nav>
+      <ul class="nav-links">
+        <li><a href="index.html">Tổng quan</a></li>
+        <li><a href="entries.html" class="active">Nhập liệu</a></li>
+        <li><a href="analytics.html">Phân tích</a></li>
+      </ul>
+    </nav>
+    <div class="masthead-date" id="masthead-date">&mdash;</div>
+  </div>
+</header>
+
+<main>
+  <div class="container">
+    <div class="entry-layout">
+
+      <!-- Sidebar: type selector -->
+      <aside class="entry-sidebar">
+        <div class="eyebrow">Ấn bản mới · Ghi mục</div>
+        <h1>Ghi vào<br/><em>sổ cái.</em></h1>
+        <p class="lede" style="margin-top: 1rem;">
+          Mỗi khoản đầu tư &mdash; một mục. Chọn loại tài sản ở bên, điền chi tiết bên phải.
+        </p>
+
+        <div class="type-selector" role="tablist">
+          <button class="type-btn active" data-type="deposit">
+            <span class="type-btn-label">Tiền gửi</span>
+            <span class="type-btn-num">№ 01 &rarr;</span>
+          </button>
+          <button class="type-btn" data-type="fund">
+            <span class="type-btn-label">Quỹ mở</span>
+            <span class="type-btn-num">№ 02 &rarr;</span>
+          </button>
+          <button class="type-btn" data-type="gold">
+            <span class="type-btn-label">Vàng</span>
+            <span class="type-btn-num">№ 03 &rarr;</span>
+          </button>
+        </div>
+      </aside>
+
+      <!-- Form -->
+      <div>
+        <div class="entry-form-wrap">
+          <div class="form-head">
+            <h2>Khoản <em id="form-title">tiền gửi</em></h2>
+            <span class="section-head-meta" id="form-num">№ 01</span>
+          </div>
+
+          <form id="entry-form" class="form-grid" autocomplete="off">
+            <input type="hidden" name="type" id="entry-type" value="deposit" />
+
+            <!-- Common: name -->
+            <div class="form-field full">
+              <label for="f-name">Tên / Mô tả <span class="hint" id="hint-name">VD: Sổ tiết kiệm VCB 6 tháng</span></label>
+              <input type="text" id="f-name" name="name" required placeholder="..." />
+            </div>
+
+            <!-- Deposit fields -->
+            <div class="form-field deposit-field">
+              <label for="f-bank">Ngân hàng / Tổ chức</label>
+              <input type="text" id="f-bank" name="bank" placeholder="VCB, Techcombank..." />
+            </div>
+            <div class="form-field deposit-field">
+              <label for="f-amount">Số tiền gửi <span class="hint">VND</span></label>
+              <input type="number" id="f-amount" name="amount" min="0" step="1000" placeholder="100000000" />
+            </div>
+            <div class="form-field deposit-field">
+              <label for="f-rate">Lãi suất năm <span class="hint">%/năm</span></label>
+              <input type="number" id="f-rate" name="rate" min="0" step="0.1" placeholder="5.5" />
+            </div>
+            <div class="form-field deposit-field">
+              <label for="f-term">Kỳ hạn <span class="hint">tháng</span></label>
+              <input type="number" id="f-term" name="termMonths" min="1" step="1" placeholder="6" />
+            </div>
+            <div class="form-field deposit-field">
+              <label for="f-startDate-d">Ngày gửi</label>
+              <input type="date" id="f-startDate-d" name="startDate" />
+            </div>
+            <div class="form-field deposit-field">
+              <label for="f-interestType">Hình thức lãi</label>
+              <select id="f-interestType" name="interestType">
+                <option value="end">Lãi cuối kỳ</option>
+                <option value="monthly">Lãi hàng tháng</option>
+                <option value="quarterly">Lãi hàng quý</option>
+              </select>
+            </div>
+
+            <!-- Fund fields -->
+            <div class="form-field fund-field" style="display:none;">
+              <label for="f-fundCode">Mã quỹ</label>
+              <input type="text" id="f-fundCode" name="fundCode" placeholder="VESAF, DCDS..." />
+            </div>
+            <div class="form-field fund-field" style="display:none;">
+              <label for="f-fundCompany">Công ty quản lý</label>
+              <input type="text" id="f-fundCompany" name="fundCompany" placeholder="VinaCapital, Dragon Capital..." />
+            </div>
+            <div class="form-field fund-field" style="display:none;">
+              <label for="f-units">Số CCQ (chứng chỉ quỹ)</label>
+              <input type="number" id="f-units" name="units" min="0" step="0.01" placeholder="1250.75" />
+            </div>
+            <div class="form-field fund-field" style="display:none;">
+              <label for="f-buyNav">NAV lúc mua <span class="hint">đ/CCQ</span></label>
+              <input type="number" id="f-buyNav" name="buyNav" min="0" step="1" placeholder="25000" />
+            </div>
+            <div class="form-field fund-field" style="display:none;">
+              <label for="f-currentNav">NAV hiện tại <span class="hint">đ/CCQ</span></label>
+              <input type="number" id="f-currentNav" name="currentNav" min="0" step="1" placeholder="26500" />
+            </div>
+            <div class="form-field fund-field" style="display:none;">
+              <label for="f-startDate-f">Ngày mua</label>
+              <input type="date" id="f-startDate-f" name="startDate" />
+            </div>
+
+            <!-- Gold fields -->
+            <div class="form-field gold-field" style="display:none;">
+              <label for="f-goldType">Loại vàng</label>
+              <select id="f-goldType" name="goldType">
+                <option value="SJC">Vàng miếng SJC</option>
+                <option value="9999">Vàng nhẫn 9999</option>
+                <option value="24k">Vàng 24k</option>
+                <option value="18k">Vàng 18k</option>
+                <option value="other">Khác</option>
+              </select>
+            </div>
+            <div class="form-field gold-field" style="display:none;">
+              <label for="f-weight">Khối lượng <span class="hint">chỉ (hoặc đơn vị)</span></label>
+              <input type="number" id="f-weight" name="weight" min="0" step="0.01" placeholder="5" />
+            </div>
+            <div class="form-field gold-field" style="display:none;">
+              <label for="f-buyPrice">Giá mua <span class="hint">đ / chỉ</span></label>
+              <input type="number" id="f-buyPrice" name="buyPrice" min="0" step="1000" placeholder="7500000" />
+            </div>
+            <div class="form-field gold-field" style="display:none;">
+              <label for="f-currentPrice">Giá hiện tại <span class="hint">đ / chỉ</span></label>
+              <input type="number" id="f-currentPrice" name="currentPrice" min="0" step="1000" placeholder="8200000" />
+            </div>
+            <div class="form-field gold-field" style="display:none;">
+              <label for="f-startDate-g">Ngày mua</label>
+              <input type="date" id="f-startDate-g" name="startDate" />
+            </div>
+            <div class="form-field gold-field" style="display:none;">
+              <label for="f-store">Nơi mua</label>
+              <input type="text" id="f-store" name="store" placeholder="SJC, PNJ, DOJI..." />
+            </div>
+
+            <!-- Common: note -->
+            <div class="form-field full">
+              <label for="f-note">Ghi chú <span class="hint">tùy chọn</span></label>
+              <textarea id="f-note" name="note" rows="2" placeholder="Ghi chú thêm về khoản đầu tư..."></textarea>
+            </div>
+
+            <div class="form-actions">
+              <button type="reset" class="btn btn-ghost">Xóa trắng</button>
+              <button type="submit" class="btn btn-primary">Lưu vào sổ &rarr;</button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Existing entries list -->
+  <section class="entries-list-section">
+    <div class="container">
+      <div class="section-head">
+        <h2>Các mục đã ghi <em>&mdash; quản lý</em></h2>
+        <span class="section-head-meta" id="entries-count">— mục</span>
+      </div>
+
+      <div class="entries-filter">
+        <button class="filter-chip active" data-filter="all">Tất cả</button>
+        <button class="filter-chip" data-filter="deposit">Tiền gửi</button>
+        <button class="filter-chip" data-filter="fund">Quỹ mở</button>
+        <button class="filter-chip" data-filter="gold">Vàng</button>
+      </div>
+
+      <div id="entries-list-wrap"><!-- populated by JS --></div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="footer-inner">
+    <div>Sổ Cái <em>&mdash; một niên giám đầu tư cá nhân</em></div>
+    <div>Dữ liệu lưu cục bộ trên trình duyệt · v1.0</div>
+  </div>
+</footer>
+
+<script src="app.js"></script>
+<script>
+(function () {
+
+  /* ---- Type switching ---- */
+  const typeButtons = document.querySelectorAll('.type-btn');
+  const formTitle = document.getElementById('form-title');
+  const formNum = document.getElementById('form-num');
+  const hintName = document.getElementById('hint-name');
+  const typeInput = document.getElementById('entry-type');
+
+  const hintByType = {
+    deposit: 'VD: Sổ tiết kiệm VCB 6 tháng',
+    fund: 'VD: Quỹ VESAF — đợt mua tháng 3',
+    gold: 'VD: Vàng SJC mua 15/01/2025',
+  };
+
+  const numByType = { deposit: '№ 01', fund: '№ 02', gold: '№ 03' };
+  const labelByType = { deposit: 'tiền gửi', fund: 'quỹ mở', gold: 'vàng' };
+
+  function switchType(type) {
+    typeButtons.forEach(b => b.classList.toggle('active', b.dataset.type === type));
+    typeInput.value = type;
+    formTitle.textContent = labelByType[type];
+    formNum.textContent = numByType[type];
+    hintName.textContent = hintByType[type];
+
+    document.querySelectorAll('.deposit-field, .fund-field, .gold-field')
+      .forEach(el => { el.style.display = 'none'; });
+    document.querySelectorAll('.' + type + '-field')
+      .forEach(el => { el.style.display = ''; });
+  }
+
+  typeButtons.forEach(btn => {
+    btn.addEventListener('click', () => switchType(btn.dataset.type));
+  });
+
+  // Default date for today
+  const today = new Date().toISOString().slice(0, 10);
+  ['f-startDate-d','f-startDate-f','f-startDate-g'].forEach(id => {
+    document.getElementById(id).value = today;
+  });
+
+  /* ---- Submit ---- */
+  const form = document.getElementById('entry-form');
+  form.addEventListener('submit', (ev) => {
+    ev.preventDefault();
+    const data = new FormData(form);
+    const type = data.get('type');
+    const entry = { type };
+
+    // Collect relevant fields
+    const fieldsByType = {
+      deposit: ['name','bank','amount','rate','termMonths','startDate','interestType','note'],
+      fund:    ['name','fundCode','fundCompany','units','buyNav','currentNav','startDate','note'],
+      gold:    ['name','goldType','weight','buyPrice','currentPrice','startDate','store','note'],
+    };
+
+    // Need to grab correct startDate input based on visible section
+    const visibleStartDate = document.querySelector('.' + type + '-field input[name="startDate"]');
+    if (visibleStartDate) entry.startDate = visibleStartDate.value;
+
+    fieldsByType[type].forEach(k => {
+      if (k === 'startDate') return; // handled above
+      const el = document.querySelector(`[name="${k}"]`);
+      if (el) entry[k] = el.value;
+    });
+
+    // Validation
+    if (!entry.name || !entry.name.trim()) {
+      toast('Vui lòng nhập tên/mô tả');
+      return;
+    }
+    if (type === 'deposit' && (!entry.amount || Number(entry.amount) <= 0)) {
+      toast('Vui lòng nhập số tiền gửi');
+      return;
+    }
+    if (type === 'fund' && (!entry.units || !entry.buyNav)) {
+      toast('Vui lòng nhập số CCQ và NAV lúc mua');
+      return;
+    }
+    if (type === 'gold' && (!entry.weight || !entry.buyPrice)) {
+      toast('Vui lòng nhập khối lượng và giá mua');
+      return;
+    }
+
+    addEntry(entry);
+    toast('Đã lưu vào sổ');
+    form.reset();
+    // reset dates
+    ['f-startDate-d','f-startDate-f','f-startDate-g'].forEach(id => {
+      document.getElementById(id).value = today;
+    });
+    renderEntriesList();
+  });
+
+  /* ---- List render ---- */
+  let currentFilter = 'all';
+
+  function renderEntriesList() {
+    const entries = loadEntries();
+    const filtered = currentFilter === 'all' ? entries : entries.filter(e => e.type === currentFilter);
+    const sorted = [...filtered].sort((a, b) =>
+      new Date(b.createdAt) - new Date(a.createdAt));
+
+    document.getElementById('entries-count').textContent =
+      entries.length + ' mục · ' + filtered.length + ' hiển thị';
+
+    const wrap = document.getElementById('entries-list-wrap');
+    if (sorted.length === 0) {
+      wrap.innerHTML = `
+        <div class="empty-state">
+          <h3>Chưa có mục nào.</h3>
+          <p>Hãy ghi mục đầu tiên bằng biểu mẫu ở trên.</p>
+        </div>`;
+      return;
+    }
+
+    let html = `
+      <table class="ledger-table">
+        <thead>
+          <tr>
+            <th style="width: 110px;">Loại</th>
+            <th>Tên</th>
+            <th class="hide-mobile">Chi tiết</th>
+            <th class="hide-mobile" style="width: 120px;">Ngày</th>
+            <th class="num-col" style="width: 140px;">Giá trị hiện tại</th>
+            <th class="num-col" style="width: 100px;">Lợi nhuận</th>
+            <th style="width: 60px;"></th>
+          </tr>
+        </thead>
+        <tbody>`;
+    sorted.forEach(e => {
+      const v = computeEntryValues(e);
+      const gainClass = v.gain >= 0 ? 'delta-positive' : 'delta-negative';
+      const gainSign = v.gain >= 0 ? '+' : '';
+
+      let detail = '';
+      if (e.type === 'deposit') {
+        detail = `${e.bank || '—'} · ${e.rate || 0}%/năm · ${e.termMonths || 0}t`;
+      } else if (e.type === 'fund') {
+        detail = `${e.fundCode || '—'} · ${Number(e.units || 0).toLocaleString('vi-VN')} CCQ`;
+      } else if (e.type === 'gold') {
+        detail = `${e.goldType || '—'} · ${e.weight || 0} chỉ`;
+      }
+
+      html += `
+        <tr>
+          <td><span class="type-tag ${e.type}">${typeLabel(e.type)}</span></td>
+          <td>${escapeHtml(e.name || '')}</td>
+          <td class="hide-mobile" style="color:var(--ink-mute); font-size:0.82rem;">${escapeHtml(detail)}</td>
+          <td class="hide-mobile num-col" style="text-align:left; color:var(--ink-mute);">${formatDate(e.startDate || e.createdAt)}</td>
+          <td class="num-col">${formatMoney(v.currentValue)}</td>
+          <td class="num-col ${gainClass}">${gainSign}${formatPct(v.gainPct, false)}</td>
+          <td>
+            <button class="delete-btn" data-id="${e.id}" title="Xoá">✕</button>
+          </td>
+        </tr>`;
+    });
+    html += '</tbody></table>';
+    wrap.innerHTML = html;
+
+    wrap.querySelectorAll('.delete-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        if (confirm('Xoá mục này khỏi sổ?')) {
+          deleteEntry(btn.dataset.id);
+          toast('Đã xoá');
+          renderEntriesList();
+        }
+      });
+    });
+  }
+
+  document.querySelectorAll('.filter-chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+      chip.classList.add('active');
+      currentFilter = chip.dataset.filter;
+      renderEntriesList();
+    });
+  });
+
+  function escapeHtml(str) {
+    return String(str).replace(/[&<>"']/g, c => ({
+      '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+    })[c]);
+  }
+
+  renderEntriesList();
+})();
+</script>
+
+</body>
+</html>

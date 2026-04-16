@@ -1,0 +1,214 @@
+/* ==========================================================================
+   Portfolio Tracker — Core logic
+   ========================================================================== */
+
+const STORAGE_KEY = 'portfolio_entries_v1';
+
+/* -------------------- Data layer -------------------- */
+
+function loadEntries() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return [];
+    const data = JSON.parse(raw);
+    return Array.isArray(data) ? data : [];
+  } catch (e) {
+    console.error('Failed to load entries:', e);
+    return [];
+  }
+}
+
+function saveEntries(entries) {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
+    return true;
+  } catch (e) {
+    console.error('Failed to save entries:', e);
+    return false;
+  }
+}
+
+function addEntry(entry) {
+  const entries = loadEntries();
+  entry.id = 'e_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
+  entry.createdAt = new Date().toISOString();
+  entries.push(entry);
+  saveEntries(entries);
+  return entry;
+}
+
+function deleteEntry(id) {
+  const entries = loadEntries().filter(e => e.id !== id);
+  saveEntries(entries);
+}
+
+/* -------------------- Calculations -------------------- */
+
+// For each entry, compute principal (vốn) and current value (giá trị hiện tại)
+function computeEntryValues(entry) {
+  const type = entry.type;
+  let principal = 0;      // amount originally invested (VND)
+  let currentValue = 0;   // current value (VND)
+
+  if (type === 'deposit') {
+    // Tiền gửi: principal = amount; currentValue = amount + estimated interest
+    principal = Number(entry.amount) || 0;
+    const rate = (Number(entry.rate) || 0) / 100;          // annual rate
+    const term = Number(entry.termMonths) || 0;            // months
+    // simple interest estimate for the locked term (pro-rata by elapsed time)
+    const start = new Date(entry.startDate);
+    const now = new Date();
+    const monthsElapsed = Math.max(0, Math.min(term, monthsBetween(start, now)));
+    const interest = principal * rate * (monthsElapsed / 12);
+    currentValue = principal + interest;
+  }
+  else if (type === 'fund') {
+    // Quỹ mở: principal = units * buyNav; currentValue = units * currentNav
+    const units = Number(entry.units) || 0;
+    const buyNav = Number(entry.buyNav) || 0;
+    const currentNav = Number(entry.currentNav) || buyNav;
+    principal = units * buyNav;
+    currentValue = units * currentNav;
+  }
+  else if (type === 'gold') {
+    // Vàng: principal = weight * buyPrice; currentValue = weight * currentPrice
+    const weight = Number(entry.weight) || 0;
+    const buyPrice = Number(entry.buyPrice) || 0;
+    const currentPrice = Number(entry.currentPrice) || buyPrice;
+    principal = weight * buyPrice;
+    currentValue = weight * currentPrice;
+  }
+
+  return {
+    principal,
+    currentValue,
+    gain: currentValue - principal,
+    gainPct: principal > 0 ? ((currentValue - principal) / principal) * 100 : 0,
+  };
+}
+
+function monthsBetween(d1, d2) {
+  if (!d1 || !d2 || isNaN(d1) || isNaN(d2)) return 0;
+  const years = d2.getFullYear() - d1.getFullYear();
+  const months = d2.getMonth() - d1.getMonth();
+  const days = d2.getDate() - d1.getDate();
+  return years * 12 + months + days / 30;
+}
+
+// Portfolio aggregates
+function computePortfolio(entries) {
+  const byType = { deposit: [], fund: [], gold: [] };
+  entries.forEach(e => {
+    if (byType[e.type]) byType[e.type].push(e);
+  });
+
+  const summary = {
+    totalPrincipal: 0,
+    totalValue: 0,
+    totalGain: 0,
+    totalGainPct: 0,
+    byType: {},
+    count: entries.length,
+  };
+
+  ['deposit', 'fund', 'gold'].forEach(type => {
+    let principal = 0, value = 0;
+    byType[type].forEach(e => {
+      const v = computeEntryValues(e);
+      principal += v.principal;
+      value += v.currentValue;
+    });
+    summary.byType[type] = {
+      principal,
+      value,
+      gain: value - principal,
+      gainPct: principal > 0 ? ((value - principal) / principal) * 100 : 0,
+      count: byType[type].length,
+      share: 0, // filled below
+    };
+    summary.totalPrincipal += principal;
+    summary.totalValue += value;
+  });
+
+  summary.totalGain = summary.totalValue - summary.totalPrincipal;
+  summary.totalGainPct = summary.totalPrincipal > 0
+    ? (summary.totalGain / summary.totalPrincipal) * 100
+    : 0;
+
+  // Share per type (% of total current value)
+  ['deposit', 'fund', 'gold'].forEach(type => {
+    summary.byType[type].share = summary.totalValue > 0
+      ? (summary.byType[type].value / summary.totalValue) * 100
+      : 0;
+  });
+
+  return summary;
+}
+
+/* -------------------- Formatting -------------------- */
+
+function formatMoney(n, opts = {}) {
+  const value = Number(n) || 0;
+  const abs = Math.abs(value);
+  let formatted;
+  if (opts.compact && abs >= 1e9) {
+    formatted = (value / 1e9).toFixed(2).replace(/\.00$/, '') + ' tỷ';
+  } else if (opts.compact && abs >= 1e6) {
+    formatted = (value / 1e6).toFixed(1).replace(/\.0$/, '') + ' tr';
+  } else {
+    formatted = new Intl.NumberFormat('vi-VN', {
+      maximumFractionDigits: 0,
+    }).format(Math.round(value));
+  }
+  return formatted;
+}
+
+function formatPct(n, withSign = true) {
+  const value = Number(n) || 0;
+  const sign = withSign && value > 0 ? '+' : '';
+  return sign + value.toFixed(2) + '%';
+}
+
+function formatDate(iso) {
+  if (!iso) return '—';
+  try {
+    const d = new Date(iso);
+    return d.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  } catch { return iso; }
+}
+
+function typeLabel(type) {
+  return {
+    deposit: 'Tiền gửi',
+    fund: 'Quỹ mở',
+    gold: 'Vàng',
+  }[type] || type;
+}
+
+/* -------------------- UI helpers -------------------- */
+
+function toast(msg) {
+  let el = document.getElementById('toast');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'toast';
+    el.className = 'toast';
+    document.body.appendChild(el);
+  }
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(el._t);
+  el._t = setTimeout(() => el.classList.remove('show'), 2400);
+}
+
+function updateMastheadDate() {
+  const el = document.getElementById('masthead-date');
+  if (!el) return;
+  const now = new Date();
+  const months = ['Tháng 1','Tháng 2','Tháng 3','Tháng 4','Tháng 5','Tháng 6',
+                  'Tháng 7','Tháng 8','Tháng 9','Tháng 10','Tháng 11','Tháng 12'];
+  el.textContent = `${now.getDate()} ${months[now.getMonth()]} ${now.getFullYear()}`;
+}
+
+// Run on every page
+document.addEventListener('DOMContentLoaded', updateMastheadDate);

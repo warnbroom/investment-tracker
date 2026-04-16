@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Phân tích — Sổ Cái</title>
+<link rel="stylesheet" href="styles.css" />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='40' fill='%23b8471f'/%3E%3C/svg%3E" />
+</head>
+<body>
+
+<header class="masthead">
+  <div class="masthead-inner">
+    <a href="index.html" class="brand">
+      <span class="brand-mark"></span>
+      Sổ Cái <em>&mdash; portfolio</em>
+    </a>
+    <nav>
+      <ul class="nav-links">
+        <li><a href="index.html">Tổng quan</a></li>
+        <li><a href="entries.html">Nhập liệu</a></li>
+        <li><a href="analytics.html" class="active">Phân tích</a></li>
+      </ul>
+    </nav>
+    <div class="masthead-date" id="masthead-date">&mdash;</div>
+  </div>
+</header>
+
+<main>
+  <section class="hero">
+    <div class="container">
+      <div class="hero-grid">
+        <div class="hero-title">
+          <div class="eyebrow">Phụ lục III · Phân tích hiệu suất</div>
+          <h1 class="display">Giải phẫu<br/><em>danh mục.</em></h1>
+        </div>
+        <div class="hero-meta">
+          <div>Tổng vốn gốc<br/><strong id="stat-principal">—</strong></div>
+          <div style="margin-top:1rem;">Tổng giá trị<br/><strong id="stat-value">—</strong></div>
+          <div style="margin-top:1rem;">Lợi nhuận ròng<br/><strong id="stat-gain">—</strong></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="container">
+    <div class="analytics-grid">
+
+      <!-- Performance by type -->
+      <div class="analytics-card">
+        <h3>Hiệu suất <em>theo loại tài sản</em></h3>
+        <div class="sub">Vốn gốc · giá trị hiện tại · lợi nhuận</div>
+        <ul class="breakdown-list" id="breakdown-type"></ul>
+      </div>
+
+      <!-- Donut chart -->
+      <div class="analytics-card">
+        <h3>Cơ cấu <em>danh mục</em></h3>
+        <div class="sub">Tỷ trọng theo giá trị hiện tại</div>
+        <div class="chart-wrap" id="donut-wrap">
+          <svg viewBox="0 0 200 200" id="donut"></svg>
+        </div>
+        <div class="alloc-legend" style="justify-content: center; margin-top: 1rem;">
+          <div class="alloc-legend-item">
+            <span class="alloc-swatch" style="background: var(--ink);"></span>
+            Tiền gửi
+          </div>
+          <div class="alloc-legend-item">
+            <span class="alloc-swatch" style="background: var(--accent);"></span>
+            Quỹ mở
+          </div>
+          <div class="alloc-legend-item">
+            <span class="alloc-swatch" style="background: var(--gold);"></span>
+            Vàng
+          </div>
+        </div>
+      </div>
+
+      <!-- Top performers -->
+      <div class="analytics-card">
+        <h3>Dẫn đầu <em>— tăng mạnh nhất</em></h3>
+        <div class="sub">Top 5 theo tỷ suất lợi nhuận</div>
+        <ul class="breakdown-list" id="top-performers"></ul>
+      </div>
+
+      <!-- Weakest -->
+      <div class="analytics-card">
+        <h3>Cần chú ý <em>— hiệu suất yếu</em></h3>
+        <div class="sub">Top 5 theo tỷ suất thấp / âm</div>
+        <ul class="breakdown-list" id="weak-performers"></ul>
+      </div>
+
+      <!-- Data management -->
+      <div class="analytics-card full">
+        <h3>Quản lý <em>dữ liệu</em></h3>
+        <div class="sub">Xuất / nhập / xoá toàn bộ dữ liệu. Dữ liệu chỉ lưu trên trình duyệt này.</div>
+        <div style="display:flex; gap:1rem; flex-wrap:wrap; margin-top: 0.5rem;">
+          <button class="btn" id="btn-export">Xuất JSON</button>
+          <label class="btn btn-ghost" style="cursor:pointer;">
+            Nhập JSON
+            <input type="file" id="file-import" accept=".json,application/json" style="display:none;" />
+          </label>
+          <button class="btn btn-danger" id="btn-clear">Xoá tất cả</button>
+          <span style="flex:1; text-align:right; align-self:center; color:var(--ink-mute); font-size:0.82rem;" id="storage-info"></span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</main>
+
+<footer>
+  <div class="footer-inner">
+    <div>Sổ Cái <em>&mdash; một niên giám đầu tư cá nhân</em></div>
+    <div>Dữ liệu lưu cục bộ trên trình duyệt · v1.0</div>
+  </div>
+</footer>
+
+<script src="app.js"></script>
+<script>
+(function () {
+  const entries = loadEntries();
+  const s = computePortfolio(entries);
+
+  /* ---- Top stats ---- */
+  document.getElementById('stat-principal').textContent = formatMoney(s.totalPrincipal) + ' đ';
+  document.getElementById('stat-value').textContent = formatMoney(s.totalValue) + ' đ';
+  const gainStat = document.getElementById('stat-gain');
+  const sign = s.totalGain >= 0 ? '+' : '';
+  gainStat.textContent = sign + formatMoney(s.totalGain) + ' đ · ' + formatPct(s.totalGainPct);
+  gainStat.style.color = s.totalGain >= 0 ? 'var(--green)' : 'var(--red)';
+
+  /* ---- Breakdown by type ---- */
+  const colors = {
+    deposit: { bg: 'var(--ink)', label: 'Tiền gửi' },
+    fund:    { bg: 'var(--accent)', label: 'Quỹ mở' },
+    gold:    { bg: 'var(--gold)', label: 'Vàng' },
+  };
+
+  const breakdownEl = document.getElementById('breakdown-type');
+  ['deposit','fund','gold'].forEach(type => {
+    const t = s.byType[type];
+    const gainClass = t.gain >= 0 ? 'delta-positive' : 'delta-negative';
+    const gainSign = t.gain >= 0 ? '+' : '';
+    const li = document.createElement('li');
+    li.className = 'breakdown-item';
+    li.innerHTML = `
+      <div class="breakdown-name">${colors[type].label}</div>
+      <div class="breakdown-value">${formatMoney(t.value)} đ</div>
+      <div class="breakdown-bar">
+        <div class="breakdown-bar-fill" style="width: ${t.share.toFixed(2)}%; background: ${colors[type].bg};"></div>
+      </div>
+      <div class="breakdown-sub">
+        <span>Vốn: ${formatMoney(t.principal)} · ${t.count} mục</span>
+        <span class="${gainClass}">${gainSign}${formatMoney(t.gain)} (${formatPct(t.gainPct)})</span>
+      </div>`;
+    breakdownEl.appendChild(li);
+  });
+
+  /* ---- Donut chart ---- */
+  renderDonut();
+
+  function renderDonut() {
+    const svg = document.getElementById('donut');
+    svg.innerHTML = '';
+
+    if (s.totalValue <= 0) {
+      svg.innerHTML = `
+        <circle cx="100" cy="100" r="70" fill="none" stroke="var(--rule-strong)" stroke-width="24" stroke-dasharray="4 4"/>
+        <text x="100" y="105" text-anchor="middle" font-family="var(--font-mono)" font-size="9" fill="var(--ink-mute)" letter-spacing="1.5">CHƯA CÓ DỮ LIỆU</text>`;
+      return;
+    }
+
+    const cx = 100, cy = 100, r = 70, stroke = 28;
+    const C = 2 * Math.PI * r;
+    let offset = 0;
+
+    const segs = [
+      { key: 'deposit', color: '#1a1613' },
+      { key: 'fund',    color: '#b8471f' },
+      { key: 'gold',    color: '#c9974a' },
+    ];
+
+    // Background ring
+    const bg = document.createElementNS('http://www.w3.org/2000/svg','circle');
+    bg.setAttribute('cx', cx); bg.setAttribute('cy', cy); bg.setAttribute('r', r);
+    bg.setAttribute('fill','none');
+    bg.setAttribute('stroke','var(--paper)');
+    bg.setAttribute('stroke-width', stroke);
+    svg.appendChild(bg);
+
+    segs.forEach(seg => {
+      const share = s.byType[seg.key].share;
+      if (share <= 0) return;
+      const len = C * (share / 100);
+      const circle = document.createElementNS('http://www.w3.org/2000/svg','circle');
+      circle.setAttribute('cx', cx);
+      circle.setAttribute('cy', cy);
+      circle.setAttribute('r', r);
+      circle.setAttribute('fill','none');
+      circle.setAttribute('stroke', seg.color);
+      circle.setAttribute('stroke-width', stroke);
+      circle.setAttribute('stroke-dasharray', `${len} ${C - len}`);
+      circle.setAttribute('stroke-dashoffset', -offset);
+      circle.setAttribute('transform', `rotate(-90 ${cx} ${cy})`);
+      svg.appendChild(circle);
+      offset += len;
+    });
+
+    // Center labels
+    const t1 = document.createElementNS('http://www.w3.org/2000/svg','text');
+    t1.setAttribute('x', cx); t1.setAttribute('y', 92);
+    t1.setAttribute('text-anchor','middle');
+    t1.setAttribute('font-family','Fraunces, serif');
+    t1.setAttribute('font-size','20');
+    t1.setAttribute('font-weight','500');
+    t1.setAttribute('fill','var(--ink)');
+    t1.textContent = formatMoney(s.totalValue, { compact: true });
+    svg.appendChild(t1);
+
+    const t2 = document.createElementNS('http://www.w3.org/2000/svg','text');
+    t2.setAttribute('x', cx); t2.setAttribute('y', 110);
+    t2.setAttribute('text-anchor','middle');
+    t2.setAttribute('font-family','JetBrains Mono, monospace');
+    t2.setAttribute('font-size','8');
+    t2.setAttribute('fill','var(--ink-mute)');
+    t2.setAttribute('letter-spacing','2');
+    t2.textContent = 'VND · TỔNG';
+    svg.appendChild(t2);
+
+    const t3 = document.createElementNS('http://www.w3.org/2000/svg','text');
+    t3.setAttribute('x', cx); t3.setAttribute('y', 128);
+    t3.setAttribute('text-anchor','middle');
+    t3.setAttribute('font-family','Fraunces, serif');
+    t3.setAttribute('font-style','italic');
+    t3.setAttribute('font-size','11');
+    t3.setAttribute('fill', s.totalGain >= 0 ? 'var(--green)' : 'var(--red)');
+    t3.textContent = formatPct(s.totalGainPct);
+    svg.appendChild(t3);
+  }
+
+  /* ---- Top / weak performers ---- */
+  const withValues = entries.map(e => ({ ...e, ...computeEntryValues(e) }))
+    .filter(e => e.principal > 0);
+
+  const top = [...withValues].sort((a,b) => b.gainPct - a.gainPct).slice(0, 5);
+  const weak = [...withValues].sort((a,b) => a.gainPct - b.gainPct).slice(0, 5);
+
+  function renderPerformerList(el, list) {
+    if (list.length === 0) {
+      el.innerHTML = '<li style="color:var(--ink-mute); font-style:italic;">Chưa có dữ liệu để xếp hạng.</li>';
+      return;
+    }
+    list.forEach(e => {
+      const gainClass = e.gain >= 0 ? 'delta-positive' : 'delta-negative';
+      const gainSign = e.gain >= 0 ? '+' : '';
+      const typeColor = colors[e.type].bg;
+      const widthPct = Math.min(100, Math.abs(e.gainPct) * 2);
+      const li = document.createElement('li');
+      li.className = 'breakdown-item';
+      li.innerHTML = `
+        <div class="breakdown-name">${escapeHtml(e.name || typeLabel(e.type))}</div>
+        <div class="breakdown-value ${gainClass}">${gainSign}${formatPct(e.gainPct, false)}</div>
+        <div class="breakdown-bar">
+          <div class="breakdown-bar-fill" style="width: ${widthPct}%; background: ${e.gain >= 0 ? 'var(--green)' : 'var(--red)'};"></div>
+        </div>
+        <div class="breakdown-sub">
+          <span><span class="type-tag ${e.type}" style="font-size:0.62rem; padding: 0.05rem 0.4rem;">${typeLabel(e.type)}</span></span>
+          <span>${formatMoney(e.currentValue)} đ · ${gainSign}${formatMoney(e.gain)}</span>
+        </div>`;
+      el.appendChild(li);
+    });
+  }
+
+  renderPerformerList(document.getElementById('top-performers'), top);
+  renderPerformerList(document.getElementById('weak-performers'), weak);
+
+  /* ---- Data management ---- */
+  document.getElementById('btn-export').addEventListener('click', () => {
+    const data = loadEntries();
+    if (data.length === 0) { toast('Chưa có dữ liệu để xuất'); return; }
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `so-cai-${new Date().toISOString().slice(0,10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast('Đã xuất file JSON');
+  });
+
+  document.getElementById('file-import').addEventListener('change', (ev) => {
+    const file = ev.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const data = JSON.parse(reader.result);
+        if (!Array.isArray(data)) throw new Error('Invalid format');
+        if (confirm(`Nhập ${data.length} mục và ghi đè dữ liệu hiện tại?`)) {
+          saveEntries(data);
+          toast('Đã nhập dữ liệu');
+          setTimeout(() => location.reload(), 800);
+        }
+      } catch (e) {
+        toast('File JSON không hợp lệ');
+      }
+    };
+    reader.readAsText(file);
+  });
+
+  document.getElementById('btn-clear').addEventListener('click', () => {
+    if (confirm('Xoá toàn bộ dữ liệu? Hành động này không thể hoàn tác.')) {
+      localStorage.removeItem(STORAGE_KEY);
+      toast('Đã xoá tất cả');
+      setTimeout(() => location.reload(), 800);
+    }
+  });
+
+  // Storage info
+  const info = document.getElementById('storage-info');
+  const raw = localStorage.getItem(STORAGE_KEY) || '';
+  info.textContent = `${entries.length} mục · ${(new Blob([raw]).size / 1024).toFixed(2)} KB`;
+
+  function escapeHtml(str) {
+    return String(str).replace(/[&<>"']/g, c => ({
+      '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+    })[c]);
+  }
+})();
+</script>
+
+</body>
+</html>
