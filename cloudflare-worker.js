@@ -1,38 +1,60 @@
 /**
  * Cloudflare Worker — CORS proxy cho Sổ Cái Portfolio Tracker
  *
- * Deploy:
- *   1. Vào https://dash.cloudflare.com/ → Workers & Pages → Create → Hello World
- *   2. Dán toàn bộ code này, Deploy
- *   3. Copy URL worker (ví dụ https://so-cai-proxy.your-name.workers.dev)
- *   4. Vào trang Phân tích → dán URL vào ô "Proxy tuỳ chỉnh" → Lưu
+ * ============================================================================
+ * CÁCH DEPLOY (5 phút, một lần duy nhất)
+ * ============================================================================
  *
- * Bảo mật:
- *   - ALLOWED_ORIGINS dưới đây giới hạn domain nào được phép dùng proxy.
- *     Sau khi deploy Sổ Cái lên GitHub Pages, thay '*' bằng domain của bạn.
- *     Ví dụ: ['https://yourname.github.io']
- *   - ALLOWED_HOSTS giới hạn website đích — chỉ cho phép DOJI & Fmarket,
- *     không cho phép proxy tới bất kỳ URL nào khác → tránh bị lạm dụng.
+ * 1. Vào https://dash.cloudflare.com → Workers & Pages
+ * 2. Bấm "Create" → "Start with Hello World!"
+ * 3. Đặt tên (ví dụ: so-cai-proxy) → bấm "Deploy"
+ * 4. Bấm "Edit code" (góc trên phải)
+ * 5. *** XOÁ SẠCH *** code mặc định trong editor
+ * 6. Dán TOÀN BỘ nội dung file này vào (từ dòng `export default` xuống hết)
+ *    KHÔNG dán phần comment này vào Worker — không bắt buộc nhưng gọn hơn.
+ * 7. Bấm "Save and deploy" (góc trên phải)
+ * 8. Copy URL Worker hiển thị phía trên (dạng https://so-cai-proxy.xxx.workers.dev)
+ * 9. Mở Sổ Cái → trang Phân tích → dán URL với format:
+ *    https://so-cai-proxy.xxx.workers.dev/?url={URL}
+ *    (PHẢI có phần ?url={URL} ở cuối)
  *
- * Giới hạn free tier Cloudflare:
- *   - 100.000 request/ngày
- *   - 10ms CPU time/request
- *   - Dư xa cho tool cá nhân (1 lần refresh ≈ 2 request)
+ * ============================================================================
+ * KIỂM TRA WORKER CÓ HOẠT ĐỘNG
+ * ============================================================================
+ *
+ * Mở URL Worker trong browser (không thêm tham số):
+ *   https://so-cai-proxy.xxx.workers.dev/
+ *
+ * Kỳ vọng thấy: {"error":"Missing ?url= parameter","hint":"..."}
+ * Nếu thấy "Worker threw exception" → code bị copy lỗi, dán lại.
+ * Nếu thấy "Worker not found" → URL sai hoặc chưa deploy.
+ *
+ * ============================================================================
  */
 
-const ALLOWED_ORIGINS = ['*']; // Đổi thành ['https://<user>.github.io'] sau khi deploy
 const ALLOWED_HOSTS = [
   'giavang.doji.vn',
   'api.fmarket.vn',
   'fmarket.vn',
 ];
 
+// Để '*' cho phép mọi domain. Sau khi deploy Sổ Cái có thể đổi thành
+// ['https://yourname.github.io'] để chặn bên thứ ba dùng proxy của bạn.
+const ALLOWED_ORIGINS = '*';
+
 export default {
   async fetch(request) {
     const origin = request.headers.get('Origin') || '*';
-    const corsHeaders = buildCorsHeaders(origin);
+    const corsHeaders = {
+      'Access-Control-Allow-Origin': ALLOWED_ORIGINS === '*' ? '*' : (
+        Array.isArray(ALLOWED_ORIGINS) && ALLOWED_ORIGINS.includes(origin) ? origin : 'null'
+      ),
+      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Accept',
+      'Access-Control-Max-Age': '86400',
+    };
 
-    // Preflight OPTIONS
+    // Handle CORS preflight — QUAN TRỌNG, nếu thiếu sẽ lỗi "Failed to fetch"
     if (request.method === 'OPTIONS') {
       return new Response(null, { status: 204, headers: corsHeaders });
     }
@@ -40,36 +62,45 @@ export default {
     const url = new URL(request.url);
     const target = url.searchParams.get('url');
 
+    // Trường hợp không có ?url= — show hướng dẫn ngắn
     if (!target) {
-      return jsonResponse(
-        { error: 'Missing ?url= parameter' },
-        400,
-        corsHeaders,
-      );
+      return new Response(JSON.stringify({
+        error: 'Missing ?url= parameter',
+        hint: 'Gọi proxy kiểu: ' + url.origin + '/?url=https://giavang.doji.vn/',
+        status: 'Worker đang hoạt động OK',
+        version: '1.0.0',
+      }, null, 2), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' },
+      });
     }
 
+    // Validate target URL
     let targetUrl;
-    try { targetUrl = new URL(target); }
-    catch {
-      return jsonResponse({ error: 'Invalid target URL' }, 400, corsHeaders);
+    try {
+      targetUrl = new URL(target);
+    } catch {
+      return jsonError('Invalid target URL: ' + target, 400, corsHeaders);
     }
 
-    // Host allowlist — chỉ cho phép DOJI và Fmarket
-    if (!ALLOWED_HOSTS.some((h) => targetUrl.hostname === h || targetUrl.hostname.endsWith('.' + h))) {
-      return jsonResponse(
-        { error: 'Host not allowed', host: targetUrl.hostname, allowed: ALLOWED_HOSTS },
-        403,
-        corsHeaders,
+    // Host allowlist
+    const hostOk = ALLOWED_HOSTS.some(h =>
+      targetUrl.hostname === h || targetUrl.hostname.endsWith('.' + h)
+    );
+    if (!hostOk) {
+      return jsonError(
+        `Host not allowed: ${targetUrl.hostname}. Allowed: ${ALLOWED_HOSTS.join(', ')}`,
+        403, corsHeaders
       );
     }
 
-    // Build fetch options
+    // Forward request
     const init = {
       method: request.method,
       headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36',
         'Accept': request.headers.get('Accept') || '*/*',
-        'Accept-Language': 'vi,en;q=0.9',
+        'Accept-Language': 'vi-VN,vi;q=0.9,en;q=0.8',
       },
     };
 
@@ -90,30 +121,17 @@ export default {
         headers: responseHeaders,
       });
     } catch (e) {
-      return jsonResponse(
-        { error: 'Upstream fetch failed', message: e.message },
-        502,
-        corsHeaders,
+      return jsonError(
+        'Upstream fetch failed: ' + (e.message || String(e)),
+        502, corsHeaders
       );
     }
   },
 };
 
-function buildCorsHeaders(origin) {
-  const allow = ALLOWED_ORIGINS.includes('*') || ALLOWED_ORIGINS.includes(origin)
-    ? (ALLOWED_ORIGINS.includes('*') ? '*' : origin)
-    : 'null';
-  return {
-    'Access-Control-Allow-Origin': allow,
-    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type',
-    'Access-Control-Max-Age': '86400',
-  };
-}
-
-function jsonResponse(data, status, headers) {
-  return new Response(JSON.stringify(data), {
+function jsonError(message, status, headers) {
+  return new Response(JSON.stringify({ error: message }, null, 2), {
     status,
-    headers: { ...headers, 'Content-Type': 'application/json' },
+    headers: { ...headers, 'Content-Type': 'application/json; charset=utf-8' },
   });
 }
