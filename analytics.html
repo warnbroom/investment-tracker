@@ -46,6 +46,32 @@
   <div class="container">
     <div class="analytics-grid">
 
+      <!-- Price updater -->
+      <div class="analytics-card full" id="updater-card">
+        <div style="display:flex; justify-content:space-between; align-items:baseline; flex-wrap:wrap; gap:1rem;">
+          <div>
+            <h3>Cập nhật giá <em>từ nguồn trực tiếp</em></h3>
+            <div class="sub">
+              Vàng &mdash; <a href="https://giavang.doji.vn" target="_blank" rel="noopener" style="color:var(--accent); text-decoration:underline; text-underline-offset:2px;">giavang.doji.vn</a> ·
+              Quỹ mở &mdash; <a href="https://fmarket.vn" target="_blank" rel="noopener" style="color:var(--accent); text-decoration:underline; text-underline-offset:2px;">fmarket.vn</a>
+            </div>
+          </div>
+          <div style="text-align:right; font-family: var(--font-mono); font-size: 0.75rem; color: var(--ink-mute); line-height: 1.7;">
+            <div>Cập nhật gần nhất</div>
+            <div id="last-update-time" style="color: var(--ink); font-weight: 500;">&mdash;</div>
+          </div>
+        </div>
+
+        <div style="display:flex; gap:1rem; flex-wrap:wrap; margin-top: 1.5rem; align-items:center;">
+          <button class="btn btn-primary" id="btn-update-prices">↻ Cập nhật giá ngay</button>
+          <span style="color: var(--ink-mute); font-size: 0.82rem; font-style: italic;" id="updater-hint">
+            Scrape qua CORS proxy công cộng. Mỗi lần mất ~5-15s tuỳ proxy.
+          </span>
+        </div>
+
+        <div id="updater-log" style="display:none; margin-top:1.5rem; padding:1rem 1.25rem; background: var(--paper); border: 1px solid var(--rule-strong); font-family: var(--font-mono); font-size: 0.82rem; line-height: 1.75; max-height: 280px; overflow-y: auto;"></div>
+      </div>
+
       <!-- Performance by type -->
       <div class="analytics-card">
         <h3>Hiệu suất <em>theo loại tài sản</em></h3>
@@ -117,6 +143,7 @@
 </footer>
 
 <script src="app.js"></script>
+<script src="price-updater.js"></script>
 <script>
 (function () {
   const entries = loadEntries();
@@ -274,6 +301,72 @@
 
   renderPerformerList(document.getElementById('top-performers'), top);
   renderPerformerList(document.getElementById('weak-performers'), weak);
+
+  /* ---- Price updater ---- */
+  const updateBtn = document.getElementById('btn-update-prices');
+  const updateLog = document.getElementById('updater-log');
+  const lastUpdateEl = document.getElementById('last-update-time');
+
+  // Show last update time if exists
+  const lastUpd = getLastPriceUpdate();
+  if (lastUpd && lastUpd.lastUpdate) {
+    const d = new Date(lastUpd.lastUpdate);
+    lastUpdateEl.textContent = d.toLocaleString('vi-VN', {
+      day: '2-digit', month: '2-digit', year: 'numeric',
+      hour: '2-digit', minute: '2-digit',
+    });
+  }
+
+  // Hide button if no fund/gold entries
+  const hasPriceable = entries.some(e => e.type === 'fund' || e.type === 'gold');
+  if (!hasPriceable) {
+    updateBtn.disabled = true;
+    updateBtn.style.opacity = '0.4';
+    updateBtn.style.cursor = 'not-allowed';
+    document.getElementById('updater-hint').textContent = 'Chưa có mục quỹ mở hoặc vàng nào để cập nhật.';
+  }
+
+  function logLine(msg, kind = 'info') {
+    updateLog.style.display = 'block';
+    const colors = {
+      info:  'var(--ink-mute)',
+      ok:    'var(--green)',
+      warn:  '#c9974a',
+      error: 'var(--red)',
+    };
+    const div = document.createElement('div');
+    div.style.color = colors[kind] || 'var(--ink)';
+    const time = new Date().toLocaleTimeString('vi-VN', { hour12: false });
+    div.innerHTML = `<span style="opacity:0.5">[${time}]</span> ${escapeHtml(msg)}`;
+    updateLog.appendChild(div);
+    updateLog.scrollTop = updateLog.scrollHeight;
+  }
+
+  updateBtn.addEventListener('click', async () => {
+    updateBtn.disabled = true;
+    updateBtn.textContent = '↻ Đang cập nhật…';
+    updateBtn.style.opacity = '0.6';
+    updateLog.innerHTML = '';
+
+    try {
+      const summary = await updateAllPrices(logLine);
+      logLine('─────────────────────────', 'info');
+      logLine(`Hoàn tất. Vàng: ${summary.goldOk} ✓ / ${summary.goldFail} ✗  ·  Quỹ: ${summary.fundOk} ✓ / ${summary.fundFail} ✗`,
+        summary.goldFail + summary.fundFail === 0 ? 'ok' : 'warn');
+      toast('Đã cập nhật giá');
+
+      if (summary.goldOk + summary.fundOk > 0) {
+        setTimeout(() => location.reload(), 1500);
+      }
+    } catch (e) {
+      logLine('Lỗi: ' + e.message, 'error');
+      toast('Cập nhật thất bại');
+    } finally {
+      updateBtn.disabled = false;
+      updateBtn.textContent = '↻ Cập nhật giá ngay';
+      updateBtn.style.opacity = '';
+    }
+  });
 
   /* ---- Data management ---- */
   document.getElementById('btn-export').addEventListener('click', () => {

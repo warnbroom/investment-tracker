@@ -174,6 +174,7 @@
 </footer>
 
 <script src="app.js"></script>
+<script src="price-updater.js"></script>
 <script>
 (function () {
   const entries = loadEntries();
@@ -286,6 +287,50 @@
     return String(str).replace(/[&<>"']/g, c => ({
       '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
     })[c]);
+  }
+
+  /* ---- Auto-refresh if stale (>4h) ---- */
+  const STALE_MS = 4 * 60 * 60 * 1000;
+  const hasPriceable = entries.some(e => e.type === 'fund' || e.type === 'gold');
+  if (hasPriceable) {
+    const lastUpd = getLastPriceUpdate();
+    const lastTime = lastUpd && lastUpd.lastUpdate ? new Date(lastUpd.lastUpdate).getTime() : 0;
+    const age = Date.now() - lastTime;
+
+    if (age > STALE_MS) {
+      // Show subtle status indicator
+      const indicator = document.createElement('div');
+      indicator.style.cssText = `
+        position: fixed; bottom: 1.5rem; left: 1.5rem; z-index: 999;
+        background: var(--paper-deep); border: 1px solid var(--rule-strong);
+        padding: 0.6rem 1rem; font-family: var(--font-mono); font-size: 0.75rem;
+        color: var(--ink-soft); border-left: 3px solid var(--accent);
+        max-width: 320px; line-height: 1.5;
+      `;
+      indicator.innerHTML = '↻ Đang tự cập nhật giá ngầm...';
+      document.body.appendChild(indicator);
+
+      updateAllPrices(() => {}).then(summary => {
+        const ok = summary.goldOk + summary.fundOk;
+        const fail = summary.goldFail + summary.fundFail;
+        if (ok > 0) {
+          indicator.style.borderLeftColor = 'var(--green)';
+          indicator.innerHTML = `✓ Đã cập nhật ${ok} mục. <a href="#" id="reload-link" style="color:var(--accent); text-decoration:underline;">Tải lại</a>`;
+          document.getElementById('reload-link').addEventListener('click', (e) => {
+            e.preventDefault(); location.reload();
+          });
+          setTimeout(() => { indicator.style.opacity = '0'; indicator.style.transition = 'opacity 0.5s'; }, 8000);
+        } else if (fail > 0) {
+          indicator.style.borderLeftColor = 'var(--red)';
+          indicator.innerHTML = `✗ Không cập nhật được. <a href="analytics.html" style="color:var(--accent); text-decoration:underline;">Xem chi tiết</a>`;
+        } else {
+          indicator.remove();
+        }
+      }).catch(() => {
+        indicator.style.borderLeftColor = 'var(--red)';
+        indicator.innerHTML = '✗ Lỗi proxy. <a href="analytics.html" style="color:var(--accent); text-decoration:underline;">Thử thủ công</a>';
+      });
+    }
   }
 })();
 </script>

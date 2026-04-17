@@ -771,6 +771,8 @@ h1, h2, h3, h4 {
   margin-bottom: 0.5rem;
   display: flex;
   justify-content: space-between;
+  align-items: center;
+  min-height: 1.5rem;
 }
 
 .form-field label .hint {
@@ -808,6 +810,34 @@ h1, h2, h3, h4 {
 .form-field .money-input {
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
+}
+
+/* Mini fetch button (inline in form labels) */
+.mini-fetch-btn {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  text-transform: none;
+  padding: 0.15rem 0.55rem;
+  background: transparent;
+  border: 1px solid var(--rule-strong);
+  color: var(--accent);
+  cursor: pointer;
+  border-radius: 2px;
+  font-weight: 500;
+  transition: all 0.15s;
+}
+
+.mini-fetch-btn:hover:not(:disabled) {
+  background: var(--accent);
+  color: var(--paper);
+  border-color: var(--accent);
+}
+
+.mini-fetch-btn:disabled {
+  opacity: 0.5;
+  cursor: wait;
 }
 
 .form-actions {

@@ -119,7 +119,10 @@
               <input type="number" id="f-buyNav" name="buyNav" min="0" step="1" placeholder="25000" />
             </div>
             <div class="form-field fund-field" style="display:none;">
-              <label for="f-currentNav">NAV hiện tại <span class="hint">đ/CCQ</span></label>
+              <label for="f-currentNav">
+                <span>NAV hiện tại <span class="hint">đ/CCQ</span></span>
+                <button type="button" class="mini-fetch-btn" id="fetch-nav-btn" title="Lấy NAV từ Fmarket">↻ Tự lấy</button>
+              </label>
               <input type="number" id="f-currentNav" name="currentNav" min="0" step="1" placeholder="26500" />
             </div>
             <div class="form-field fund-field" style="display:none;">
@@ -132,7 +135,7 @@
               <label for="f-goldType">Loại vàng</label>
               <select id="f-goldType" name="goldType">
                 <option value="SJC">Vàng miếng SJC</option>
-                <option value="9999">Vàng nhẫn Hưng Thịnh Vượng</option>
+                <option value="9999">Vàng nhẫn 9999</option>
                 <option value="24k">Vàng 24k</option>
                 <option value="18k">Vàng 18k</option>
                 <option value="other">Khác</option>
@@ -147,7 +150,10 @@
               <input type="number" id="f-buyPrice" name="buyPrice" min="0" step="1000" placeholder="7500000" />
             </div>
             <div class="form-field gold-field" style="display:none;">
-              <label for="f-currentPrice">Giá hiện tại <span class="hint">đ / chỉ</span></label>
+              <label for="f-currentPrice">
+                <span>Giá hiện tại <span class="hint">đ / chỉ</span></span>
+                <button type="button" class="mini-fetch-btn" id="fetch-gold-btn" title="Lấy giá từ DOJI">↻ Tự lấy</button>
+              </label>
               <input type="number" id="f-currentPrice" name="currentPrice" min="0" step="1000" placeholder="8200000" />
             </div>
             <div class="form-field gold-field" style="display:none;">
@@ -204,6 +210,7 @@
 </footer>
 
 <script src="app.js"></script>
+<script src="price-updater.js"></script>
 <script>
 (function () {
 
@@ -244,6 +251,56 @@
   const today = new Date().toISOString().slice(0, 10);
   ['f-startDate-d','f-startDate-f','f-startDate-g'].forEach(id => {
     document.getElementById(id).value = today;
+  });
+
+  /* ---- Mini fetch buttons (NAV & gold price) ---- */
+  const navBtn = document.getElementById('fetch-nav-btn');
+  const goldBtn = document.getElementById('fetch-gold-btn');
+
+  navBtn.addEventListener('click', async () => {
+    const code = document.getElementById('f-fundCode').value.trim();
+    if (!code) { toast('Nhập mã quỹ trước (VD: VESAF)'); return; }
+
+    navBtn.disabled = true;
+    navBtn.textContent = '…';
+    try {
+      const funds = await fetchFmarketFunds();
+      const matched = matchFundNav(funds, code);
+      if (!matched) {
+        toast(`Không tìm thấy quỹ "${code}" trên Fmarket`);
+      } else {
+        document.getElementById('f-currentNav').value = Math.round(matched.nav);
+        toast(`${code}: NAV ${formatMoney(matched.nav)} đ`);
+      }
+    } catch (e) {
+      toast('Lỗi: ' + e.message.slice(0, 60));
+    } finally {
+      navBtn.disabled = false;
+      navBtn.textContent = '↻ Tự lấy';
+    }
+  });
+
+  goldBtn.addEventListener('click', async () => {
+    const goldType = document.getElementById('f-goldType').value;
+    if (!goldType) { toast('Chọn loại vàng trước'); return; }
+
+    goldBtn.disabled = true;
+    goldBtn.textContent = '…';
+    try {
+      const rows = await fetchDojiGoldPrices();
+      const matched = matchGoldPrice(rows, goldType);
+      if (!matched) {
+        toast(`Không tìm thấy loại "${goldType}" tại DOJI`);
+      } else {
+        document.getElementById('f-currentPrice').value = Math.round(matched.buy);
+        toast(`${matched.matchedName}: ${formatMoney(matched.buy)} đ/chỉ`);
+      }
+    } catch (e) {
+      toast('Lỗi: ' + e.message.slice(0, 60));
+    } finally {
+      goldBtn.disabled = false;
+      goldBtn.textContent = '↻ Tự lấy';
+    }
   });
 
   /* ---- Submit ---- */
