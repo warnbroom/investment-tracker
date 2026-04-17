@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Test Proxy — Sổ Cái</title>
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+<header class="masthead">
+  <div class="masthead-inner">
+    <a href="index.html" class="brand">
+      <span class="brand-mark"></span>
+      Sổ Cái <em>&mdash; portfolio</em>
+    </a>
+    <nav>
+      <ul class="nav-links">
+        <li><a href="index.html">Tổng quan</a></li>
+        <li><a href="entries.html">Nhập liệu</a></li>
+        <li><a href="analytics.html">Phân tích</a></li>
+      </ul>
+    </nav>
+    <div class="masthead-date" id="masthead-date">&mdash;</div>
+  </div>
+</header>
+
+<main>
+  <div class="container" style="padding: 3rem 0; max-width: 900px;">
+
+    <div class="eyebrow">Công cụ · Debug</div>
+    <h1 style="font-family: var(--font-display); font-size: 3rem; font-weight: 400; margin: 1rem 0 2rem; letter-spacing: -0.02em;">
+      Test <em style="font-style: italic; color: var(--accent);">proxy</em>
+    </h1>
+
+    <p style="font-size: 1rem; color: var(--ink-soft); margin-bottom: 2rem;">
+      Trang này giúp debug proxy Cloudflare Worker. Mỗi bước hiển thị kết quả độc lập nên dễ tìm lỗi.
+    </p>
+
+    <!-- Step 1: Paste URL -->
+    <div class="analytics-card" style="margin-bottom: 1.5rem;">
+      <h3 style="font-family: var(--font-display); font-size: 1.25rem; font-weight: 500; margin-bottom: 1rem;">
+        Bước 1 <em style="font-style: italic; color: var(--accent);">— Dán URL Worker</em>
+      </h3>
+      <input type="url" id="url-input" placeholder="https://xxx.workers.dev/?url={URL}"
+        style="width: 100%; padding: 0.75rem 1rem; background: var(--paper); border: 1px solid var(--rule-strong); font-family: var(--font-mono); font-size: 0.9rem; color: var(--ink); box-sizing: border-box;"/>
+      <div style="margin-top: 0.75rem; font-size: 0.82rem; color: var(--ink-mute);">
+        URL <strong>phải</strong> có <code style="background: var(--paper); padding: 0.1rem 0.4rem; font-family: var(--font-mono);">?url={URL}</code> ở cuối. Chữ <code style="background: var(--paper); padding: 0.1rem 0.4rem; font-family: var(--font-mono);">{URL}</code> viết đúng y hệt, cả dấu ngoặc nhọn.
+      </div>
+    </div>
+
+    <!-- Step 2: Test raw fetch -->
+    <div class="analytics-card" style="margin-bottom: 1.5rem;">
+      <h3 style="font-family: var(--font-display); font-size: 1.25rem; font-weight: 500; margin-bottom: 1rem;">
+        Bước 2 <em style="font-style: italic; color: var(--accent);">— Test raw fetch tới DOJI</em>
+      </h3>
+      <p style="font-size: 0.9rem; color: var(--ink-soft); margin-bottom: 1rem;">
+        Gọi thử <code style="background: var(--paper); padding: 0.1rem 0.4rem; font-family: var(--font-mono);">https://giavang.doji.vn/</code> qua proxy và hiển thị kết quả thô.
+      </p>
+      <button class="btn btn-primary" id="btn-step2">Chạy bước 2</button>
+      <pre id="result-step2" style="display:none; margin-top: 1rem; padding: 1rem; background: var(--paper); border: 1px solid var(--rule-strong); font-family: var(--font-mono); font-size: 0.78rem; line-height: 1.6; overflow-x: auto; white-space: pre-wrap; max-height: 300px; overflow-y: auto;"></pre>
+    </div>
+
+    <!-- Step 3: Parse HTML -->
+    <div class="analytics-card" style="margin-bottom: 1.5rem;">
+      <h3 style="font-family: var(--font-display); font-size: 1.25rem; font-weight: 500; margin-bottom: 1rem;">
+        Bước 3 <em style="font-style: italic; color: var(--accent);">— Parse bảng giá DOJI</em>
+      </h3>
+      <p style="font-size: 0.9rem; color: var(--ink-soft); margin-bottom: 1rem;">
+        Dùng kết quả bước 2 để parse thành bảng các loại vàng và giá.
+      </p>
+      <button class="btn btn-primary" id="btn-step3">Chạy bước 3</button>
+      <div id="result-step3" style="display:none; margin-top: 1rem;"></div>
+    </div>
+
+    <!-- Step 4: Fmarket -->
+    <div class="analytics-card" style="margin-bottom: 1.5rem;">
+      <h3 style="font-family: var(--font-display); font-size: 1.25rem; font-weight: 500; margin-bottom: 1rem;">
+        Bước 4 <em style="font-style: italic; color: var(--accent);">— Test Fmarket API</em>
+      </h3>
+      <p style="font-size: 0.9rem; color: var(--ink-soft); margin-bottom: 1rem;">
+        Gọi thử API Fmarket (POST JSON) qua proxy — đây là phần dễ lỗi nhất nếu Worker không hỗ trợ POST.
+      </p>
+      <button class="btn btn-primary" id="btn-step4">Chạy bước 4</button>
+      <div id="result-step4" style="display:none; margin-top: 1rem;"></div>
+    </div>
+
+    <!-- Step 5: Save -->
+    <div class="analytics-card">
+      <h3 style="font-family: var(--font-display); font-size: 1.25rem; font-weight: 500; margin-bottom: 1rem;">
+        Bước 5 <em style="font-style: italic; color: var(--accent);">— Lưu proxy</em>
+      </h3>
+      <p style="font-size: 0.9rem; color: var(--ink-soft); margin-bottom: 1rem;">
+        Nếu bước 2-4 đều OK, bấm Lưu để hệ thống nhớ URL này. Lần sau không phải dán lại.
+      </p>
+      <button class="btn btn-primary" id="btn-save">Lưu proxy</button>
+      <span id="save-status" style="margin-left: 1rem; font-family: var(--font-mono); font-size: 0.85rem;"></span>
+    </div>
+
+  </div>
+</main>
+
+<footer>
+  <div class="footer-inner">
+    <div>Sổ Cái <em>&mdash; một niên giám đầu tư cá nhân</em></div>
+    <div>Dữ liệu lưu cục bộ trên trình duyệt · v1.0</div>
+  </div>
+</footer>
+
+<script src="app.js"></script>
+<script src="price-updater.js"></script>
+<script>
+(function () {
+  console.log('[Test Proxy] Script loaded');
+
+  const urlInput = document.getElementById('url-input');
+
+  // Pre-fill nếu đã có proxy được lưu
+  const existingProxy = getProxyUrl();
+  if (existingProxy) {
+    urlInput.value = existingProxy;
+    console.log('[Test Proxy] Pre-filled from storage:', existingProxy);
+  }
+
+  let rawHtml = null; // lưu HTML từ bước 2 để bước 3 dùng
+
+  function getUrl() {
+    const url = urlInput.value.trim();
+    if (!url) {
+      alert('Dán URL Worker vào ô trên đã.');
+      return null;
+    }
+    if (!url.startsWith('https://')) {
+      alert('URL phải bắt đầu bằng https://');
+      return null;
+    }
+    // Tạm set để price-updater dùng
+    setProxyUrl(url);
+    return url;
+  }
+
+  function showResult(id, html) {
+    const el = document.getElementById(id);
+    el.style.display = 'block';
+    el.innerHTML = html;
+  }
+
+  function escapeHtml(str) {
+    return String(str).replace(/[&<>"']/g, c => ({
+      '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+    })[c]);
+  }
+
+  /* ---- Step 2: raw fetch ---- */
+  document.getElementById('btn-step2').addEventListener('click', async () => {
+    const url = getUrl();
+    if (!url) return;
+
+    const btn = document.getElementById('btn-step2');
+    const resEl = document.getElementById('result-step2');
+    btn.disabled = true;
+    btn.textContent = 'Đang chạy...';
+    resEl.style.display = 'block';
+    resEl.textContent = 'Đang fetch qua proxy...';
+    resEl.style.color = 'var(--ink-mute)';
+
+    const proxiedUrl = buildProxyUrl('https://giavang.doji.vn/');
+    console.log('[Test Proxy] Step 2: fetching', proxiedUrl);
+
+    try {
+      const startTime = Date.now();
+      const res = await fetch(proxiedUrl);
+      const elapsed = Date.now() - startTime;
+      const text = await res.text();
+      rawHtml = text;
+      const snippet = text.slice(0, 1500);
+
+      let header = `✓ HTTP ${res.status} · ${elapsed}ms · ${text.length.toLocaleString()} bytes\n`;
+      header += `Proxied URL: ${proxiedUrl}\n\n`;
+      header += `--- First 1500 chars of response ---\n`;
+
+      resEl.style.color = res.ok ? 'var(--green)' : 'var(--red)';
+      resEl.textContent = header + snippet + (text.length > 1500 ? '\n\n...(truncated)' : '');
+    } catch (e) {
+      console.error('[Test Proxy] Step 2 failed:', e);
+      resEl.style.color = 'var(--red)';
+      resEl.textContent = `✗ Fetch thất bại\n\n${e.name}: ${e.message}\n\nStack:\n${e.stack || '(không có)'}`;
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Chạy bước 2';
+    }
+  });
+
+  /* ---- Step 3: parse ---- */
+  document.getElementById('btn-step3').addEventListener('click', () => {
+    if (!rawHtml) {
+      alert('Chạy bước 2 trước đã.');
+      return;
+    }
+    try {
+      const rows = parseDojiHtml(rawHtml);
+      if (rows.length === 0) {
+        showResult('result-step3',
+          `<div style="padding:1rem; background:var(--paper); border-left:3px solid var(--red); color: var(--red);">
+            ✗ Parse thành công nhưng không tìm thấy dòng giá nào.<br>
+            Có thể HTML trả về đã đổi format hoặc proxy trả về trang khác. Kiểm tra kỹ kết quả bước 2.
+          </div>`);
+        return;
+      }
+      let html = `<div style="color: var(--green); margin-bottom: 1rem; font-family: var(--font-mono); font-size: 0.85rem;">✓ Parsed ${rows.length} dòng giá</div>`;
+      html += '<table style="width: 100%; border-collapse: collapse; font-size: 0.85rem;">';
+      html += '<thead><tr style="border-bottom: 1px solid var(--ink);"><th style="text-align:left; padding: 0.5rem; font-family: var(--font-mono); font-size: 0.75rem; text-transform: uppercase; color: var(--ink-mute);">Loại</th><th style="text-align:right; padding: 0.5rem; font-family: var(--font-mono); font-size: 0.75rem; text-transform: uppercase; color: var(--ink-mute);">Mua (đ/chỉ)</th><th style="text-align:right; padding: 0.5rem; font-family: var(--font-mono); font-size: 0.75rem; text-transform: uppercase; color: var(--ink-mute);">Bán (đ/chỉ)</th></tr></thead><tbody>';
+      rows.forEach(r => {
+        html += `<tr style="border-bottom: 1px dashed var(--rule);">
+          <td style="padding: 0.5rem;">${escapeHtml(r.name)}</td>
+          <td style="padding: 0.5rem; text-align: right; font-family: var(--font-mono);">${r.buy.toLocaleString('vi-VN')}</td>
+          <td style="padding: 0.5rem; text-align: right; font-family: var(--font-mono);">${r.sell.toLocaleString('vi-VN')}</td>
+        </tr>`;
+      });
+      html += '</tbody></table>';
+      showResult('result-step3', html);
+    } catch (e) {
+      console.error('[Test Proxy] Step 3 failed:', e);
+      showResult('result-step3',
+        `<div style="padding:1rem; background:var(--paper); border-left:3px solid var(--red); color: var(--red); font-family: var(--font-mono); font-size: 0.85rem; white-space: pre-wrap;">✗ Parse thất bại\n\n${escapeHtml(e.message)}</div>`);
+    }
+  });
+
+  /* ---- Step 4: Fmarket ---- */
+  document.getElementById('btn-step4').addEventListener('click', async () => {
+    const url = getUrl();
+    if (!url) return;
+
+    const btn = document.getElementById('btn-step4');
+    btn.disabled = true;
+    btn.textContent = 'Đang chạy...';
+    showResult('result-step4',
+      '<div style="color: var(--ink-mute); font-family: var(--font-mono); font-size: 0.85rem;">Đang gọi Fmarket API (POST JSON)...</div>');
+
+    try {
+      const startTime = Date.now();
+      const funds = await fetchFmarketFunds();
+      const elapsed = Date.now() - startTime;
+
+      if (funds.length === 0) {
+        showResult('result-step4',
+          `<div style="padding:1rem; background:var(--paper); border-left:3px solid var(--red); color: var(--red);">
+            ✗ API trả về nhưng không có quỹ nào. Có thể format response đã đổi.
+          </div>`);
+        return;
+      }
+
+      let html = `<div style="color: var(--green); margin-bottom: 1rem; font-family: var(--font-mono); font-size: 0.85rem;">✓ ${elapsed}ms · nhận ${funds.length} quỹ</div>`;
+      html += '<table style="width: 100%; border-collapse: collapse; font-size: 0.85rem;">';
+      html += '<thead><tr style="border-bottom: 1px solid var(--ink);"><th style="text-align:left; padding: 0.5rem; font-family: var(--font-mono); font-size: 0.75rem; text-transform: uppercase; color: var(--ink-mute);">Mã</th><th style="text-align:left; padding: 0.5rem; font-family: var(--font-mono); font-size: 0.75rem; text-transform: uppercase; color: var(--ink-mute);">Tên</th><th style="text-align:right; padding: 0.5rem; font-family: var(--font-mono); font-size: 0.75rem; text-transform: uppercase; color: var(--ink-mute);">NAV (đ)</th><th style="text-align:right; padding: 0.5rem; font-family: var(--font-mono); font-size: 0.75rem; text-transform: uppercase; color: var(--ink-mute);">Ngày NAV</th></tr></thead><tbody>';
+      funds.slice(0, 20).forEach(f => {
+        html += `<tr style="border-bottom: 1px dashed var(--rule);">
+          <td style="padding: 0.5rem; font-family: var(--font-mono); font-weight: 500;">${escapeHtml(f.shortName)}</td>
+          <td style="padding: 0.5rem; font-size: 0.8rem; color: var(--ink-soft);">${escapeHtml(f.name || '')}</td>
+          <td style="padding: 0.5rem; text-align: right; font-family: var(--font-mono);">${f.nav.toLocaleString('vi-VN')}</td>
+          <td style="padding: 0.5rem; text-align: right; font-family: var(--font-mono); color: var(--ink-mute); font-size: 0.78rem;">${escapeHtml(f.navDate || '')}</td>
+        </tr>`;
+      });
+      html += '</tbody></table>';
+      if (funds.length > 20) html += `<div style="margin-top: 0.75rem; color: var(--ink-mute); font-size: 0.8rem; font-style: italic;">(hiển thị 20/${funds.length} quỹ)</div>`;
+      showResult('result-step4', html);
+    } catch (e) {
+      console.error('[Test Proxy] Step 4 failed:', e);
+      showResult('result-step4',
+        `<div style="padding:1rem; background:var(--paper); border-left:3px solid var(--red); color: var(--red); font-family: var(--font-mono); font-size: 0.85rem; white-space: pre-wrap;">✗ Fmarket API thất bại\n\n${escapeHtml(e.name + ': ' + e.message)}\n\nNếu lỗi 405/403 → Worker không hỗ trợ POST. Kiểm tra code Worker có xử lý method POST không.</div>`);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Chạy bước 4';
+    }
+  });
+
+  /* ---- Step 5: Save ---- */
+  document.getElementById('btn-save').addEventListener('click', () => {
+    const url = getUrl();
+    if (!url) return;
+    setProxyUrl(url);
+    const status = document.getElementById('save-status');
+    status.textContent = '✓ Đã lưu — các trang khác giờ sẽ dùng proxy này';
+    status.style.color = 'var(--green)';
+  });
+
+  console.log('[Test Proxy] Handlers attached');
+})();
+</script>
+
+</body>
+</html>

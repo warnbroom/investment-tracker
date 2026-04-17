@@ -322,12 +322,25 @@
   renderPerformerList(document.getElementById('weak-performers'), weak);
 
   /* ---- Proxy config ---- */
+  console.log('[Sổ Cái] Setting up proxy config...');
   const proxyInput = document.getElementById('proxy-url-input');
   const proxyStatus = document.getElementById('proxy-status');
   const proxyResult = document.getElementById('proxy-test-result');
   const btnTestProxy = document.getElementById('btn-test-proxy');
   const btnSaveProxy = document.getElementById('btn-save-proxy');
   const btnClearProxy = document.getElementById('btn-clear-proxy');
+
+  if (!btnTestProxy || !proxyInput) {
+    console.error('[Sổ Cái] Không tìm thấy proxy UI elements. Có thể HTML bị lỗi.');
+  } else {
+    console.log('[Sổ Cái] Proxy UI elements found OK.');
+  }
+
+  function showProxyResult(msg, kind) {
+    proxyResult.style.display = 'block';
+    const color = { ok: 'var(--green)', error: 'var(--red)', info: 'var(--ink-mute)' }[kind] || 'var(--ink)';
+    proxyResult.innerHTML = `<span style="color: ${color};">${msg}</span>`;
+  }
 
   function refreshProxyStatus() {
     const url = getProxyUrl();
@@ -345,6 +358,7 @@
   refreshProxyStatus();
 
   btnSaveProxy.addEventListener('click', () => {
+    console.log('[Sổ Cái] Save proxy clicked');
     const url = proxyInput.value.trim();
     if (!url) { toast('Nhập URL Worker trước'); return; }
     if (!url.startsWith('https://')) { toast('URL phải bắt đầu bằng https://'); return; }
@@ -362,24 +376,42 @@
   });
 
   btnTestProxy.addEventListener('click', async () => {
+    console.log('[Sổ Cái] Test proxy clicked');
     const url = proxyInput.value.trim();
-    if (!url) { toast('Nhập URL Worker trước'); return; }
+    if (!url) {
+      showProxyResult('✗ Nhập URL Worker trước khi kiểm tra', 'error');
+      return;
+    }
+    if (!url.startsWith('https://')) {
+      showProxyResult('✗ URL phải bắt đầu bằng https://', 'error');
+      return;
+    }
+    if (!url.includes('{URL}') && !url.includes('?url=') && !url.includes('&url=')) {
+      showProxyResult('⚠ URL nên có "{URL}" placeholder. VD: https://xxx.workers.dev/?url={URL}', 'error');
+      return;
+    }
+
     // Tạm lưu để test
     const oldUrl = getProxyUrl();
     setProxyUrl(url);
 
     btnTestProxy.disabled = true;
     btnTestProxy.textContent = 'Đang kiểm tra…';
-    proxyResult.style.display = 'block';
-    proxyResult.innerHTML = '<span style="color: var(--ink-mute);">Đang gọi thử tới giavang.doji.vn…</span>';
+    showProxyResult('⟳ Đang gọi thử tới giavang.doji.vn qua proxy...', 'info');
 
     try {
+      console.log('[Sổ Cái] Calling testProxy()...');
       const result = await testProxy();
-      proxyResult.innerHTML = `<span style="color: var(--green);">✓ Proxy hoạt động tốt. DOJI trả ${result.rowCount} dòng giá. Dòng đầu: "${result.sampleName}"</span>`;
+      console.log('[Sổ Cái] testProxy() result:', result);
+      showProxyResult(
+        `✓ Proxy hoạt động tốt. DOJI trả ${result.rowCount} dòng giá. Dòng đầu: "${escapeHtml(result.sampleName)}"`,
+        'ok'
+      );
       if (!oldUrl) toast('Proxy OK — bấm Lưu để dùng');
     } catch (e) {
-      proxyResult.innerHTML = `<span style="color: var(--red);">✗ ${escapeHtml(e.message)}</span>`;
-      // Rollback nếu test fail và trước đó chưa có proxy
+      console.error('[Sổ Cái] testProxy() failed:', e);
+      showProxyResult('✗ ' + escapeHtml(e.message || String(e)), 'error');
+      // Rollback
       if (!oldUrl) setProxyUrl('');
       else setProxyUrl(oldUrl);
     } finally {
@@ -387,6 +419,8 @@
       btnTestProxy.textContent = 'Kiểm tra';
     }
   });
+
+  console.log('[Sổ Cái] Proxy handlers attached OK');
 
   /* ---- Price updater ---- */
   const updateBtn = document.getElementById('btn-update-prices');
