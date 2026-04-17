@@ -49,6 +49,18 @@
       </div>
     </div>
 
+    <!-- Step 1b: Ping Worker root (no params) -->
+    <div class="analytics-card" style="margin-bottom: 1.5rem;">
+      <h3 style="font-family: var(--font-display); font-size: 1.25rem; font-weight: 500; margin-bottom: 1rem;">
+        Bước 1b <em style="font-style: italic; color: var(--accent);">— Kiểm tra Worker có sống không</em>
+      </h3>
+      <p style="font-size: 0.9rem; color: var(--ink-soft); margin-bottom: 1rem;">
+        Gọi URL Worker mà không kèm tham số, kiểm tra Worker có phản hồi. Nếu bước này fail, sẽ không có bước nào khác chạy được.
+      </p>
+      <button class="btn btn-primary" id="btn-step1b">Ping Worker</button>
+      <pre id="result-step1b" style="display:none; margin-top: 1rem; padding: 1rem; background: var(--paper); border: 1px solid var(--rule-strong); font-family: var(--font-mono); font-size: 0.78rem; line-height: 1.6; overflow-x: auto; white-space: pre-wrap; max-height: 300px; overflow-y: auto;"></pre>
+    </div>
+
     <!-- Step 2: Test raw fetch -->
     <div class="analytics-card" style="margin-bottom: 1.5rem;">
       <h3 style="font-family: var(--font-display); font-size: 1.25rem; font-weight: 500; margin-bottom: 1rem;">
@@ -150,6 +162,86 @@
       '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
     })[c]);
   }
+
+  /* ---- Step 1b: ping Worker root ---- */
+  document.getElementById('btn-step1b').addEventListener('click', async () => {
+    const url = getUrl();
+    if (!url) return;
+
+    const btn = document.getElementById('btn-step1b');
+    const resEl = document.getElementById('result-step1b');
+    btn.disabled = true;
+    btn.textContent = 'Đang ping...';
+    resEl.style.display = 'block';
+    resEl.textContent = 'Đang gọi Worker (không kèm tham số)...';
+    resEl.style.color = 'var(--ink-mute)';
+
+    // Lấy URL Worker gốc (bỏ phần ?url= nếu có)
+    let rootUrl = url;
+    try {
+      const u = new URL(url.replace('{URL}', 'placeholder'));
+      rootUrl = u.origin + u.pathname;
+    } catch {
+      rootUrl = url.split('?')[0];
+    }
+
+    console.log('[Test Proxy] Ping:', rootUrl);
+
+    try {
+      const startTime = Date.now();
+      const res = await fetch(rootUrl, { method: 'GET' });
+      const elapsed = Date.now() - startTime;
+      const text = await res.text();
+
+      let header = `HTTP ${res.status} · ${elapsed}ms\n`;
+      header += `URL pinged: ${rootUrl}\n\n`;
+      header += `--- Response body ---\n`;
+
+      // Diagnosis
+      let diag = '';
+      if (res.status === 200 || res.status === 400) {
+        // 400 là expected nếu Worker báo "Missing ?url="
+        if (text.includes('Missing ?url=') || text.includes('"status"') || text.includes('Worker')) {
+          diag = '\n\n✓ Worker đang chạy. Code Worker đúng. Tiếp tục bước 2.';
+          resEl.style.color = 'var(--green)';
+        } else {
+          diag = '\n\n⚠ Worker phản hồi nhưng body lạ. Có thể code Worker sai hoặc đã sửa.';
+          resEl.style.color = '#c9974a';
+        }
+      } else if (res.status === 404) {
+        diag = '\n\n✗ 404 Not Found — URL Worker sai hoặc chưa deploy. Kiểm tra lại URL.';
+        resEl.style.color = 'var(--red)';
+      } else if (res.status === 500 || res.status === 1101 || res.status === 1102) {
+        diag = '\n\n✗ Worker crash. Có thể do code paste sai format. Deploy lại với code mới.';
+        resEl.style.color = 'var(--red)';
+      } else {
+        diag = `\n\n⚠ HTTP ${res.status} không mong đợi.`;
+        resEl.style.color = '#c9974a';
+      }
+
+      resEl.textContent = header + text.slice(0, 1500) + diag;
+    } catch (e) {
+      console.error('[Test Proxy] Step 1b failed:', e);
+      resEl.style.color = 'var(--red)';
+      let diag = `\n\n--- CHẨN ĐOÁN ---\n`;
+      if (e.message === 'Failed to fetch') {
+        diag += `• Trình duyệt không gọi được URL. Khả năng:\n`;
+        diag += `  1. URL sai (typo)\n`;
+        diag += `  2. Worker chưa được deploy hoặc đã bị xoá\n`;
+        diag += `  3. Extension chặn (thử tắt ad blocker)\n`;
+        diag += `  4. Worker không trả CORS header — dán lại code Worker mới\n\n`;
+        diag += `Mở URL này trong tab mới:\n${rootUrl}\n`;
+        diag += `Nếu tab mới cũng không load được → URL/Worker sai. Deploy lại.\n`;
+        diag += `Nếu tab mới load bình thường → vấn đề là CORS. Worker cần xử lý OPTIONS preflight.`;
+      } else {
+        diag += e.message;
+      }
+      resEl.textContent = `✗ Fetch thất bại\n\n${e.name}: ${e.message}${diag}`;
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Ping Worker';
+    }
+  });
 
   /* ---- Step 2: raw fetch ---- */
   document.getElementById('btn-step2').addEventListener('click', async () => {
