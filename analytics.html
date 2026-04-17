@@ -62,10 +62,29 @@
           </div>
         </div>
 
+        <!-- Proxy config box -->
+        <div id="proxy-box" style="margin-top:1.5rem; padding:1.25rem; background: var(--paper); border: 1px solid var(--rule-strong); border-left: 3px solid var(--accent);">
+          <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom: 0.75rem; flex-wrap:wrap; gap:0.5rem;">
+            <strong style="font-family: var(--font-display); font-style: italic; font-size: 1.05rem; font-weight: 500;">Cloudflare Worker Proxy</strong>
+            <span id="proxy-status" style="font-family: var(--font-mono); font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase;"></span>
+          </div>
+          <div style="font-size: 0.85rem; color: var(--ink-soft); line-height: 1.5; margin-bottom: 0.9rem;">
+            Dán URL Cloudflare Worker của bạn vào đây. Deploy miễn phí trong 5 phút &mdash; xem file <code style="font-family: var(--font-mono); font-size: 0.85em; background: var(--paper-deep); padding: 0.05rem 0.35rem;">cloudflare-worker.js</code> và README.
+          </div>
+          <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
+            <input type="url" id="proxy-url-input" placeholder="https://so-cai-proxy.xxx.workers.dev/?url={URL}"
+              style="flex:1; min-width: 280px; padding: 0.65rem 0.85rem; background: var(--paper-deep); border: 1px solid var(--rule-strong); font-family: var(--font-mono); font-size: 0.82rem; color: var(--ink);"/>
+            <button class="btn" id="btn-test-proxy" type="button">Kiểm tra</button>
+            <button class="btn btn-primary" id="btn-save-proxy" type="button">Lưu</button>
+            <button class="btn btn-ghost" id="btn-clear-proxy" type="button" style="display:none;">Xoá</button>
+          </div>
+          <div id="proxy-test-result" style="margin-top:0.75rem; font-family: var(--font-mono); font-size: 0.78rem; line-height: 1.5; display:none;"></div>
+        </div>
+
         <div style="display:flex; gap:1rem; flex-wrap:wrap; margin-top: 1.5rem; align-items:center;">
           <button class="btn btn-primary" id="btn-update-prices">↻ Cập nhật giá ngay</button>
           <span style="color: var(--ink-mute); font-size: 0.82rem; font-style: italic;" id="updater-hint">
-            Scrape qua CORS proxy công cộng. Mỗi lần mất ~5-15s tuỳ proxy.
+            Scrape qua Cloudflare Worker. Mỗi lần mất ~2-5s.
           </span>
         </div>
 
@@ -302,6 +321,73 @@
   renderPerformerList(document.getElementById('top-performers'), top);
   renderPerformerList(document.getElementById('weak-performers'), weak);
 
+  /* ---- Proxy config ---- */
+  const proxyInput = document.getElementById('proxy-url-input');
+  const proxyStatus = document.getElementById('proxy-status');
+  const proxyResult = document.getElementById('proxy-test-result');
+  const btnTestProxy = document.getElementById('btn-test-proxy');
+  const btnSaveProxy = document.getElementById('btn-save-proxy');
+  const btnClearProxy = document.getElementById('btn-clear-proxy');
+
+  function refreshProxyStatus() {
+    const url = getProxyUrl();
+    if (url) {
+      proxyInput.value = url;
+      proxyStatus.textContent = '● Đã cấu hình';
+      proxyStatus.style.color = 'var(--green)';
+      btnClearProxy.style.display = '';
+    } else {
+      proxyStatus.textContent = '○ Chưa cấu hình';
+      proxyStatus.style.color = 'var(--red)';
+      btnClearProxy.style.display = 'none';
+    }
+  }
+  refreshProxyStatus();
+
+  btnSaveProxy.addEventListener('click', () => {
+    const url = proxyInput.value.trim();
+    if (!url) { toast('Nhập URL Worker trước'); return; }
+    if (!url.startsWith('https://')) { toast('URL phải bắt đầu bằng https://'); return; }
+    setProxyUrl(url);
+    refreshProxyStatus();
+    toast('Đã lưu proxy');
+  });
+
+  btnClearProxy.addEventListener('click', () => {
+    if (!confirm('Xoá cấu hình proxy?')) return;
+    setProxyUrl('');
+    proxyInput.value = '';
+    refreshProxyStatus();
+    toast('Đã xoá proxy');
+  });
+
+  btnTestProxy.addEventListener('click', async () => {
+    const url = proxyInput.value.trim();
+    if (!url) { toast('Nhập URL Worker trước'); return; }
+    // Tạm lưu để test
+    const oldUrl = getProxyUrl();
+    setProxyUrl(url);
+
+    btnTestProxy.disabled = true;
+    btnTestProxy.textContent = 'Đang kiểm tra…';
+    proxyResult.style.display = 'block';
+    proxyResult.innerHTML = '<span style="color: var(--ink-mute);">Đang gọi thử tới giavang.doji.vn…</span>';
+
+    try {
+      const result = await testProxy();
+      proxyResult.innerHTML = `<span style="color: var(--green);">✓ Proxy hoạt động tốt. DOJI trả ${result.rowCount} dòng giá. Dòng đầu: "${result.sampleName}"</span>`;
+      if (!oldUrl) toast('Proxy OK — bấm Lưu để dùng');
+    } catch (e) {
+      proxyResult.innerHTML = `<span style="color: var(--red);">✗ ${escapeHtml(e.message)}</span>`;
+      // Rollback nếu test fail và trước đó chưa có proxy
+      if (!oldUrl) setProxyUrl('');
+      else setProxyUrl(oldUrl);
+    } finally {
+      btnTestProxy.disabled = false;
+      btnTestProxy.textContent = 'Kiểm tra';
+    }
+  });
+
   /* ---- Price updater ---- */
   const updateBtn = document.getElementById('btn-update-prices');
   const updateLog = document.getElementById('updater-log');
@@ -343,6 +429,13 @@
   }
 
   updateBtn.addEventListener('click', async () => {
+    if (!hasProxy()) {
+      toast('Chưa cấu hình proxy — xem ô Cloudflare Worker Proxy ở trên');
+      document.getElementById('proxy-box').scrollIntoView({ behavior: 'smooth', block: 'center' });
+      proxyInput.focus();
+      return;
+    }
+
     updateBtn.disabled = true;
     updateBtn.textContent = '↻ Đang cập nhật…';
     updateBtn.style.opacity = '0.6';

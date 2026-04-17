@@ -17,9 +17,38 @@ Website scrape giá trực tiếp từ 2 nguồn:
 - **Vàng** — `giavang.doji.vn`: lấy giá **mua vào** theo loại (SJC, nhẫn 9999, nữ trang 99.99/99.9/99) từ bảng giá HTML.
 - **Quỹ mở** — `api.fmarket.vn`: gọi API JSON public, tìm NAV hiện tại theo mã quỹ (VESAF, DCDS, VEOF...).
 
-Vì GitHub Pages là static hosting (không có backend), request phải đi qua **CORS proxy công cộng**. Mặc định dùng chuỗi fallback: `corsproxy.io` → `allorigins.win` → `codetabs.com`. Nếu proxy đầu fail, tự động thử proxy sau.
+Vì GitHub Pages là static hosting (không backend), request phải đi qua một **CORS proxy**. Các proxy công cộng (corsproxy.io, allorigins, ...) trong giai đoạn 2025-2026 đã không còn đáng tin — rate limit khắt khe, đòi API key, hoặc chặn hosted environments. Nên giải pháp bền vững duy nhất là **tự host Cloudflare Worker miễn phí**.
 
-**Hai cách dùng:**
+### Setup Cloudflare Worker (5 phút, một lần duy nhất)
+
+**Bước 1 — Tạo Worker:**
+
+1. Vào [dash.cloudflare.com](https://dash.cloudflare.com/) → đăng ký / đăng nhập (miễn phí, không cần thẻ).
+2. Menu trái → **Workers & Pages** → **Create** → chọn **Hello World** starter.
+3. Đặt tên (ví dụ `so-cai-proxy`) → **Deploy**.
+4. Bấm **Edit code** → xoá sạch code mặc định → dán toàn bộ nội dung file `cloudflare-worker.js` → **Save and deploy**.
+5. Copy URL hiển thị phía trên (dạng `https://so-cai-proxy.your-name.workers.dev`).
+
+**Bước 2 — Kết nối vào Sổ Cái:**
+
+1. Mở trang **Phân tích** của Sổ Cái.
+2. Ở ô "Cloudflare Worker Proxy", dán URL theo format: `https://so-cai-proxy.your-name.workers.dev/?url={URL}` (phải có phần `?url={URL}` ở cuối — `{URL}` là placeholder).
+3. Bấm **Kiểm tra** → nếu thấy dòng xanh "✓ Proxy hoạt động tốt" là OK.
+4. Bấm **Lưu**.
+
+**Bước 3 (tùy chọn) — Giới hạn domain:**
+
+Sau khi đã deploy Sổ Cái lên GitHub Pages, vào lại code Worker, sửa dòng đầu:
+
+```js
+const ALLOWED_ORIGINS = ['https://<username>.github.io'];
+```
+
+Làm vậy để không ai khác ngoài website của bạn có thể dùng proxy này (tránh ăn quota 100k request/ngày).
+
+**Giới hạn free tier Cloudflare:** 100.000 request/ngày — dư xa (1 lần cập nhật Sổ Cái = 2 request: 1 tới DOJI + 1 tới Fmarket).
+
+### Ba cách cập nhật giá
 
 1. **Nút "Tự lấy" trong form nhập liệu** — điền mã quỹ / chọn loại vàng rồi bấm nút nhỏ cạnh field giá → tự fill.
 2. **Nút "Cập nhật giá ngay" trên trang Phân tích** — quét tất cả mục `fund` + `gold` trong sổ, cập nhật hàng loạt, hiển thị log tiến trình.
@@ -27,71 +56,24 @@ Vì GitHub Pages là static hosting (không có backend), request phải đi qua
 
 **Giới hạn cần biết:**
 
-- Proxy công cộng có thể bị rate-limit hoặc xuống bất chợt. Nếu bạn cần ổn định hơn, tự host một Cloudflare Worker proxy (free tier dư dùng) và sửa `PROXY_CHAIN` đầu file `price-updater.js`.
 - DOJI trả giá theo **nghìn đồng/chỉ** — code đã tự nhân 1000 ra VND/chỉ thực.
-- Fmarket chỉ có các quỹ đang giao dịch trên nền tảng này. Quỹ ngoài Fmarket (nếu có) phải nhập tay.
-
-### Tuỳ chọn — tự host CORS proxy bằng Cloudflare Worker
-
-Nếu muốn proxy ổn định hơn (free tier CF Worker: 100.000 request/ngày, thừa cho cá nhân):
-
-1. Đăng nhập [dash.cloudflare.com](https://dash.cloudflare.com) → Workers & Pages → Create → Hello World.
-2. Dán code sau vào editor:
-
-```js
-export default {
-  async fetch(request) {
-    const url = new URL(request.url);
-    const target = url.searchParams.get('url');
-    if (!target) return new Response('Missing ?url=', { status: 400 });
-
-    const init = {
-      method: request.method,
-      headers: { 'User-Agent': 'Mozilla/5.0' },
-    };
-    if (request.method === 'POST') {
-      init.body = await request.text();
-      init.headers['Content-Type'] = request.headers.get('Content-Type') || 'application/json';
-    }
-
-    const res = await fetch(target, init);
-    const body = await res.text();
-    return new Response(body, {
-      status: res.status,
-      headers: {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type',
-        'Content-Type': res.headers.get('Content-Type') || 'text/plain',
-      },
-    });
-  },
-};
-```
-
-3. Deploy → copy URL worker (ví dụ `https://my-proxy.your-name.workers.dev`).
-4. Mở `price-updater.js`, thêm lên đầu `PROXY_CHAIN`:
-
-```js
-{
-  name: 'my-cf-worker',
-  wrap: (url) => `https://my-proxy.your-name.workers.dev/?url=${encodeURIComponent(url)}`,
-  supportsPost: true,
-},
-```
+- Fmarket chỉ có các quỹ đang giao dịch trên nền tảng này (~40 quỹ phổ biến). Quỹ ngoài Fmarket (nếu có) phải nhập tay.
 
 ## Cấu trúc
 
 ```
 /
-├── index.html         # Landing / Dashboard
-├── entries.html       # Nhập liệu & quản lý mục
-├── analytics.html     # Phân tích chi tiết + cập nhật giá
-├── styles.css         # Thiết kế chung (editorial / warm paper)
-├── app.js             # Logic & tính toán
-├── price-updater.js   # Scrape DOJI + Fmarket qua CORS proxy
+├── index.html             # Landing / Dashboard
+├── entries.html           # Nhập liệu & quản lý mục
+├── analytics.html         # Phân tích + cập nhật giá + cấu hình proxy
+├── styles.css             # Thiết kế chung (editorial / warm paper)
+├── app.js                 # Logic & tính toán
+├── price-updater.js       # Scrape DOJI + Fmarket qua proxy
+├── cloudflare-worker.js   # Code Worker để deploy (KHÔNG upload lên GitHub Pages)
 └── README.md
 ```
+
+**Lưu ý:** File `cloudflare-worker.js` chỉ để copy-paste vào Cloudflare dashboard, không cần đưa lên GitHub Pages cùng các file khác. Nhưng giữ trong repo để tiện tham khảo lại.
 
 ## Deploy lên GitHub Pages
 

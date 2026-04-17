@@ -292,7 +292,7 @@
   /* ---- Auto-refresh if stale (>4h) ---- */
   const STALE_MS = 4 * 60 * 60 * 1000;
   const hasPriceable = entries.some(e => e.type === 'fund' || e.type === 'gold');
-  if (hasPriceable) {
+  if (hasPriceable && hasProxy()) {
     const lastUpd = getLastPriceUpdate();
     const lastTime = lastUpd && lastUpd.lastUpdate ? new Date(lastUpd.lastUpdate).getTime() : 0;
     const age = Date.now() - lastTime;
