@@ -67,8 +67,7 @@
         Bước 2 <em style="font-style: italic; color: var(--accent);">— Test raw fetch tới DOJI</em>
       </h3>
       <p style="font-size: 0.9rem; color: var(--ink-soft); margin-bottom: 1rem;">
-        Gọi thử <code style="background: var(--paper); padding: 0.1rem 0.4rem; font-family: var(--font-mono);">https://giavang.doji.vn/</code> qua proxy và hiển thị kết quả thô.
-        Worker sẽ tự route qua ScraperAPI (mất 10-30s vì đi qua residential proxy).
+        Gọi thử <code style="background: var(--paper); padding: 0.1rem 0.4rem; font-family: var(--font-mono);">https://webgia.com/gia-vang/doji/</code> qua proxy và hiển thị kết quả thô.
       </p>
       <button class="btn btn-primary" id="btn-step2">Chạy bước 2</button>
       <pre id="result-step2" style="display:none; margin-top: 1rem; padding: 1rem; background: var(--paper); border: 1px solid var(--rule-strong); font-family: var(--font-mono); font-size: 0.78rem; line-height: 1.6; overflow-x: auto; white-space: pre-wrap; max-height: 300px; overflow-y: auto;"></pre>
@@ -257,7 +256,7 @@
     resEl.textContent = 'Đang fetch qua proxy...';
     resEl.style.color = 'var(--ink-mute)';
 
-    const proxiedUrl = buildProxyUrl('https://giavang.doji.vn/');
+    const proxiedUrl = buildProxyUrl('https://webgia.com/gia-vang/doji/');
     console.log('[Test Proxy] Step 2: fetching', proxiedUrl);
 
     try {

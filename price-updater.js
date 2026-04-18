@@ -45,18 +45,19 @@ function buildProxyUrl(targetUrl) {
 }
 
 /* -------- GOLD TYPE MAPPING --------
-   Tên loại vàng trên giavang.doji.vn:
-     - "SJC - Bán Lẻ"
-     - "NHẪN TRÒN 9999 HƯNG THỊNH VƯỢNG"
-     - "Nữ trang 99.99 - Bán Lẻ"
-     - "Nữ trang 99.9 - Bán Lẻ"
-     - "Nữ trang 99 - Bán Lẻ"                                          */
+   Tên loại vàng trên webgia.com/gia-vang/doji (data từ DOJI):
+     - "SJC Lẻ"
+     - "AVPL" (Kim TT)
+     - "Nhẫn tròn 999 Hưng Thịnh Vượng"
+     - "Nữ trang 99.99"
+     - "Nữ trang 99.9"
+     - "Nữ trang 99"                                                    */
 
 const GOLD_PATTERNS = {
-  'SJC':   [/SJC\s*-?\s*B[áa]n\s*L[ẻe]/i, /^SJC\b/im],
-  '9999':  [/NH[ẪẪẬ]N\s+TR[ÒOÓ]N\s+9999/i, /9999.*H[ƯƯỪ]NG\s*TH[ỊỊ]NH/i],
-  '24k':   [/N[ữữ]\s+trang\s+99[\.,]99/i, /99[\.,]99\s*-?\s*B[áa]n\s*L[ẻe]/i],
-  '18k':   [/N[ữữ]\s+trang\s+99[\.,]9(?![\.,\d])/i, /99[\.,]9\s*-?\s*B[áa]n\s*L[ẻe]/i],
+  'SJC':   [/SJC\s*L[ẻe]/i, /^SJC\b/im],
+  '9999':  [/Nh[ẫẫậ]n\s+tr[òoó]n\s+999/i, /H[ưưừ]ng\s*Th[ịị]nh/i],
+  '24k':   [/N[ữữ]\s+trang\s+99[\.,]99/i],
+  '18k':   [/N[ữữ]\s+trang\s+99[\.,]9(?![\.,\d])/i],
   'other': [/N[ữữ]\s+trang\s+99(?![\.,\d])/i],
 };
 
@@ -66,8 +67,7 @@ async function fetchViaProxy(targetUrl, options = {}) {
   const proxiedUrl = buildProxyUrl(targetUrl);
 
   const controller = new AbortController();
-  // ScraperAPI có thể mất đến 60s cho request khó, nên timeout lớn hơn
-  const timeout = setTimeout(() => controller.abort(), 60000);
+  const timeout = setTimeout(() => controller.abort(), 20000);
 
   try {
     const res = await fetch(proxiedUrl, {
@@ -85,35 +85,37 @@ async function fetchViaProxy(targetUrl, options = {}) {
     return { text: await res.text() };
   } catch (e) {
     clearTimeout(timeout);
-    if (e.name === 'AbortError') throw new Error('Proxy timeout (>60s). Có thể ScraperAPI đang chậm, thử lại sau.');
+    if (e.name === 'AbortError') throw new Error('Proxy timeout (>20s). Kiểm tra Worker có đang chạy không.');
     throw e;
   }
 }
 
-/** Test proxy — gọi thử tới DOJI qua ScraperAPI */
+/** Test proxy — gọi thử tới webgia.com */
 async function testProxy() {
-  const { text } = await fetchViaProxy('https://giavang.doji.vn/');
-  const rows = parseDojiHtml(text);
-  if (rows.length === 0) throw new Error('Proxy OK nhưng không parse được HTML DOJI. Có thể response là trang lỗi.');
+  const { text } = await fetchViaProxy('https://webgia.com/gia-vang/doji/');
+  const rows = parseGoldHtml(text);
+  if (rows.length === 0) throw new Error('Proxy OK nhưng không parse được HTML bảng giá.');
   return { rowCount: rows.length, sampleName: rows[0].name };
 }
 
 /* ==========================================================================
-   GOLD — scrape giavang.doji.vn qua ScraperAPI
-   Worker tự route request qua ScraperAPI khi target là giavang.doji.vn,
-   vì DOJI chặn IPs của Cloudflare datacenter.
+   GOLD — scrape webgia.com/gia-vang/doji (data từ DOJI)
+   Dùng webgia vì giavang.doji.vn chặn datacenter IPs của Cloudflare.
+   Webgia cung cấp CÙNG data từ DOJI, chỉ khác đường vào.
    ========================================================================== */
 
 async function fetchDojiGoldPrices() {
-  const { text: html } = await fetchViaProxy('https://giavang.doji.vn/');
-  return parseDojiHtml(html);
+  const { text: html } = await fetchViaProxy('https://webgia.com/gia-vang/doji/');
+  return parseGoldHtml(html);
 }
 
 /**
- * Parse HTML bảng giá DOJI (giavang.doji.vn).
- * Format: <tr> có 3 <td>: [Tên, Mua vào, Bán ra]. Giá tính bằng nghìn/chỉ.
+ * Parse HTML bảng giá webgia.
+ * Format: <tr> có 7 <td>: [Tên, HàNội mua, HàNội bán, ĐàNẵng mua,
+ * ĐàNẵng bán, TPHCM mua, TPHCM bán]. Giá đã ở VND/chỉ.
+ * Lấy giá Hà Nội (cột 2 = mua, cột 3 = bán).
  */
-function parseDojiHtml(html) {
+function parseGoldHtml(html) {
   const rows = [];
   const parser = new DOMParser();
   const doc = parser.parseFromString(html, 'text/html');
@@ -121,25 +123,24 @@ function parseDojiHtml(html) {
   const trs = doc.querySelectorAll('tr');
   trs.forEach(tr => {
     const tds = tr.querySelectorAll('td');
-    if (tds.length !== 3) return;
+    if (tds.length !== 7) return;
     const name = tds[0].textContent.trim();
+    if (!name || name.toLowerCase().includes('mua vào')) return; // skip header
+
     const buyRaw = tds[1].textContent.trim().replace(/[.,\s]/g, '');
     const sellRaw = tds[2].textContent.trim().replace(/[.,\s]/g, '');
     const buy = parseInt(buyRaw, 10);
     const sell = parseInt(sellRaw, 10);
-    if (!name || isNaN(buy) || isNaN(sell) || buy < 100) return;
-    rows.push({
-      name,
-      buy: buy * 1000,   // DOJI: nghìn/chỉ → VND/chỉ
-      sell: sell * 1000,
-    });
+    if (isNaN(buy) || isNaN(sell) || buy < 1000000) return; // giá > 1tr/chỉ
+
+    rows.push({ name, buy, sell });
   });
 
   return rows;
 }
 
-// Alias for compatibility
-const parseGoldHtml = parseDojiHtml;
+// Alias
+const parseDojiHtml = parseGoldHtml;
 
 function matchGoldPrice(dojiRows, goldType) {
   const patterns = GOLD_PATTERNS[goldType] || GOLD_PATTERNS['SJC'];
