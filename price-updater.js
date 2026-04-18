@@ -44,14 +44,20 @@ function buildProxyUrl(targetUrl) {
   return proxy + sep + 'url=' + encodeURIComponent(targetUrl);
 }
 
-/* -------- GOLD TYPE MAPPING -------- */
+/* -------- GOLD TYPE MAPPING --------
+   Tên loại vàng trên giavang.doji.vn:
+     - "SJC - Bán Lẻ"
+     - "NHẪN TRÒN 9999 HƯNG THỊNH VƯỢNG"
+     - "Nữ trang 99.99 - Bán Lẻ"
+     - "Nữ trang 99.9 - Bán Lẻ"
+     - "Nữ trang 99 - Bán Lẻ"                                          */
 
-const DOJI_GOLD_PATTERNS = {
+const GOLD_PATTERNS = {
   'SJC':   [/SJC\s*-?\s*B[áa]n\s*L[ẻe]/i, /^SJC\b/im],
   '9999':  [/NH[ẪẪẬ]N\s+TR[ÒOÓ]N\s+9999/i, /9999.*H[ƯƯỪ]NG\s*TH[ỊỊ]NH/i],
   '24k':   [/N[ữữ]\s+trang\s+99[\.,]99/i, /99[\.,]99\s*-?\s*B[áa]n\s*L[ẻe]/i],
-  '18k':   [/N[ữữ]\s+trang\s+99[\.,]9\s*-/i, /99[\.,]9\s*-?\s*B[áa]n\s*L[ẻe]/i],
-  'other': [/N[ữữ]\s+trang\s+99\s*-/i],
+  '18k':   [/N[ữữ]\s+trang\s+99[\.,]9(?![\.,\d])/i, /99[\.,]9\s*-?\s*B[áa]n\s*L[ẻe]/i],
+  'other': [/N[ữữ]\s+trang\s+99(?![\.,\d])/i],
 };
 
 /* -------- FETCH VIA PROXY -------- */
@@ -60,7 +66,8 @@ async function fetchViaProxy(targetUrl, options = {}) {
   const proxiedUrl = buildProxyUrl(targetUrl);
 
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 20000);
+  // ScraperAPI có thể mất đến 60s cho request khó, nên timeout lớn hơn
+  const timeout = setTimeout(() => controller.abort(), 60000);
 
   try {
     const res = await fetch(proxiedUrl, {
@@ -78,21 +85,23 @@ async function fetchViaProxy(targetUrl, options = {}) {
     return { text: await res.text() };
   } catch (e) {
     clearTimeout(timeout);
-    if (e.name === 'AbortError') throw new Error('Proxy timeout (>20s). Kiểm tra Worker có đang chạy không.');
+    if (e.name === 'AbortError') throw new Error('Proxy timeout (>60s). Có thể ScraperAPI đang chậm, thử lại sau.');
     throw e;
   }
 }
 
-/** Test proxy — gọi thử tới DOJI */
+/** Test proxy — gọi thử tới DOJI qua ScraperAPI */
 async function testProxy() {
   const { text } = await fetchViaProxy('https://giavang.doji.vn/');
   const rows = parseDojiHtml(text);
-  if (rows.length === 0) throw new Error('Proxy OK nhưng không parse được HTML DOJI.');
+  if (rows.length === 0) throw new Error('Proxy OK nhưng không parse được HTML DOJI. Có thể response là trang lỗi.');
   return { rowCount: rows.length, sampleName: rows[0].name };
 }
 
 /* ==========================================================================
-   GOLD — scrape giavang.doji.vn
+   GOLD — scrape giavang.doji.vn qua ScraperAPI
+   Worker tự route request qua ScraperAPI khi target là giavang.doji.vn,
+   vì DOJI chặn IPs của Cloudflare datacenter.
    ========================================================================== */
 
 async function fetchDojiGoldPrices() {
@@ -100,6 +109,10 @@ async function fetchDojiGoldPrices() {
   return parseDojiHtml(html);
 }
 
+/**
+ * Parse HTML bảng giá DOJI (giavang.doji.vn).
+ * Format: <tr> có 3 <td>: [Tên, Mua vào, Bán ra]. Giá tính bằng nghìn/chỉ.
+ */
 function parseDojiHtml(html) {
   const rows = [];
   const parser = new DOMParser();
@@ -125,8 +138,11 @@ function parseDojiHtml(html) {
   return rows;
 }
 
+// Alias for compatibility
+const parseGoldHtml = parseDojiHtml;
+
 function matchGoldPrice(dojiRows, goldType) {
-  const patterns = DOJI_GOLD_PATTERNS[goldType] || DOJI_GOLD_PATTERNS['SJC'];
+  const patterns = GOLD_PATTERNS[goldType] || GOLD_PATTERNS['SJC'];
   for (const pattern of patterns) {
     const match = dojiRows.find(row => pattern.test(row.name));
     if (match) return { buy: match.buy, sell: match.sell, matchedName: match.name };
