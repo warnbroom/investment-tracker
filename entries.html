@@ -4,7 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Nhập liệu — Sổ Cái</title>
-<link rel="stylesheet" href="styles.css?v=2" />
+<link rel="stylesheet" href="styles.css?v=3" />
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='40' fill='%23b8471f'/%3E%3C/svg%3E" />
 </head>
 <body>
@@ -50,6 +50,10 @@
           <button class="type-btn" data-type="gold">
             <span class="type-btn-label">Vàng</span>
             <span class="type-btn-num">№ 03 &rarr;</span>
+          </button>
+          <button class="type-btn" data-type="usd">
+            <span class="type-btn-label">USD</span>
+            <span class="type-btn-num">№ 04 &rarr;</span>
           </button>
         </div>
       </aside>
@@ -165,6 +169,31 @@
               <input type="text" id="f-store" name="store" placeholder="SJC, PNJ, DOJI..." />
             </div>
 
+            <!-- USD fields -->
+            <div class="form-field usd-field" style="display:none;">
+              <label for="f-usdAmount">Số USD <span class="hint">đơn vị USD</span></label>
+              <input type="number" id="f-usdAmount" name="usdAmount" min="0" step="1" placeholder="1000" />
+            </div>
+            <div class="form-field usd-field" style="display:none;">
+              <label for="f-buyRate">Tỷ giá mua <span class="hint">đ / USD</span></label>
+              <input type="number" id="f-buyRate" name="buyRate" min="0" step="1" placeholder="25800" />
+            </div>
+            <div class="form-field usd-field" style="display:none;">
+              <label for="f-currentRate">
+                <span>Tỷ giá hiện tại <span class="hint">đ / USD</span></span>
+                <button type="button" class="mini-fetch-btn" id="fetch-usd-btn" title="Lấy tỷ giá Mua CK Vietcombank">↻ Tự lấy</button>
+              </label>
+              <input type="number" id="f-currentRate" name="currentRate" min="0" step="1" placeholder="26125" />
+            </div>
+            <div class="form-field usd-field" style="display:none;">
+              <label for="f-startDate-u">Ngày mua</label>
+              <input type="date" id="f-startDate-u" name="startDate" />
+            </div>
+            <div class="form-field usd-field" style="display:none;">
+              <label for="f-source">Nguồn <span class="hint">tùy chọn</span></label>
+              <input type="text" id="f-source" name="source" placeholder="VCB, BIDV, chợ đen..." />
+            </div>
+
             <!-- Common: note -->
             <div class="form-field full">
               <label for="f-note">Ghi chú <span class="hint">tùy chọn</span></label>
@@ -195,6 +224,7 @@
         <button class="filter-chip" data-filter="deposit">Tiền gửi</button>
         <button class="filter-chip" data-filter="fund">Quỹ mở</button>
         <button class="filter-chip" data-filter="gold">Vàng</button>
+        <button class="filter-chip" data-filter="usd">USD</button>
       </div>
 
       <div id="entries-list-wrap"><!-- populated by JS --></div>
@@ -209,8 +239,8 @@
   </div>
 </footer>
 
-<script src="app.js?v=2"></script>
-<script src="price-updater.js?v=2"></script>
+<script src="app.js?v=3"></script>
+<script src="price-updater.js?v=3"></script>
 <script>
 (function () {
 
@@ -225,10 +255,11 @@
     deposit: 'VD: Sổ tiết kiệm VCB 6 tháng',
     fund: 'VD: Quỹ VESAF — đợt mua tháng 3',
     gold: 'VD: Vàng SJC mua 15/01/2025',
+    usd: 'VD: USD tích luỹ tháng 4',
   };
 
-  const numByType = { deposit: '№ 01', fund: '№ 02', gold: '№ 03' };
-  const labelByType = { deposit: 'tiền gửi', fund: 'quỹ mở', gold: 'vàng' };
+  const numByType = { deposit: '№ 01', fund: '№ 02', gold: '№ 03', usd: '№ 04' };
+  const labelByType = { deposit: 'tiền gửi', fund: 'quỹ mở', gold: 'vàng', usd: 'USD' };
 
   function switchType(type) {
     typeButtons.forEach(b => b.classList.toggle('active', b.dataset.type === type));
@@ -237,7 +268,7 @@
     formNum.textContent = numByType[type];
     hintName.textContent = hintByType[type];
 
-    document.querySelectorAll('.deposit-field, .fund-field, .gold-field')
+    document.querySelectorAll('.deposit-field, .fund-field, .gold-field, .usd-field')
       .forEach(el => { el.style.display = 'none'; });
     document.querySelectorAll('.' + type + '-field')
       .forEach(el => { el.style.display = ''; });
@@ -249,13 +280,15 @@
 
   // Default date for today
   const today = new Date().toISOString().slice(0, 10);
-  ['f-startDate-d','f-startDate-f','f-startDate-g'].forEach(id => {
-    document.getElementById(id).value = today;
+  ['f-startDate-d','f-startDate-f','f-startDate-g','f-startDate-u'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = today;
   });
 
-  /* ---- Mini fetch buttons (NAV & gold price) ---- */
+  /* ---- Mini fetch buttons (NAV & gold price & USD rate) ---- */
   const navBtn = document.getElementById('fetch-nav-btn');
   const goldBtn = document.getElementById('fetch-gold-btn');
+  const usdBtn = document.getElementById('fetch-usd-btn');
 
   navBtn.addEventListener('click', async () => {
     const code = document.getElementById('f-fundCode').value.trim();
@@ -303,6 +336,25 @@
     }
   });
 
+  usdBtn.addEventListener('click', async () => {
+    usdBtn.disabled = true;
+    usdBtn.textContent = '…';
+    try {
+      const rateData = await fetchUsdRate();
+      if (!rateData) {
+        toast('Không tìm thấy tỷ giá USD trên bảng');
+      } else {
+        document.getElementById('f-currentRate').value = rateData.buyTransfer;
+        toast(`VCB Mua CK: ${formatMoney(rateData.buyTransfer)} đ/USD`);
+      }
+    } catch (e) {
+      toast('Lỗi: ' + e.message.slice(0, 60));
+    } finally {
+      usdBtn.disabled = false;
+      usdBtn.textContent = '↻ Tự lấy';
+    }
+  });
+
   /* ---- Submit ---- */
   const form = document.getElementById('entry-form');
   form.addEventListener('submit', (ev) => {
@@ -316,6 +368,7 @@
       deposit: ['name','bank','amount','rate','termMonths','startDate','interestType','note'],
       fund:    ['name','fundCode','fundCompany','units','buyNav','currentNav','startDate','note'],
       gold:    ['name','goldType','weight','buyPrice','currentPrice','startDate','store','note'],
+      usd:     ['name','usdAmount','buyRate','currentRate','startDate','source','note'],
     };
 
     // Need to grab correct startDate input based on visible section
@@ -345,13 +398,18 @@
       toast('Vui lòng nhập khối lượng và giá mua');
       return;
     }
+    if (type === 'usd' && (!entry.usdAmount || !entry.buyRate)) {
+      toast('Vui lòng nhập số USD và tỷ giá mua');
+      return;
+    }
 
     addEntry(entry);
     toast('Đã lưu vào sổ');
     form.reset();
     // reset dates
-    ['f-startDate-d','f-startDate-f','f-startDate-g'].forEach(id => {
-      document.getElementById(id).value = today;
+    ['f-startDate-d','f-startDate-f','f-startDate-g','f-startDate-u'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.value = today;
     });
     renderEntriesList();
   });
@@ -404,6 +462,8 @@
         detail = `${e.fundCode || '—'} · ${Number(e.units || 0).toLocaleString('vi-VN')} CCQ`;
       } else if (e.type === 'gold') {
         detail = `${e.goldType || '—'} · ${e.weight || 0} chỉ`;
+      } else if (e.type === 'usd') {
+        detail = `${Number(e.usdAmount || 0).toLocaleString('vi-VN')} USD · ${e.source || '—'}`;
       }
 
       html += `

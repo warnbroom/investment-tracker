@@ -78,6 +78,15 @@ function computeEntryValues(entry) {
     principal = weight * buyPrice;
     currentValue = weight * currentPrice;
   }
+  else if (type === 'usd') {
+    // USD: principal = usdAmount * buyRate (VND chi ra để mua USD)
+    //      currentValue = usdAmount * currentRate (VND nếu bán USD bây giờ)
+    const usdAmount = Number(entry.usdAmount) || 0;
+    const buyRate = Number(entry.buyRate) || 0;
+    const currentRate = Number(entry.currentRate) || buyRate;
+    principal = usdAmount * buyRate;
+    currentValue = usdAmount * currentRate;
+  }
 
   return {
     principal,
@@ -97,7 +106,7 @@ function monthsBetween(d1, d2) {
 
 // Portfolio aggregates
 function computePortfolio(entries) {
-  const byType = { deposit: [], fund: [], gold: [] };
+  const byType = { deposit: [], fund: [], gold: [], usd: [] };
   entries.forEach(e => {
     if (byType[e.type]) byType[e.type].push(e);
   });
@@ -111,7 +120,7 @@ function computePortfolio(entries) {
     count: entries.length,
   };
 
-  ['deposit', 'fund', 'gold'].forEach(type => {
+  ['deposit', 'fund', 'gold', 'usd'].forEach(type => {
     let principal = 0, value = 0;
     byType[type].forEach(e => {
       const v = computeEntryValues(e);
@@ -136,7 +145,7 @@ function computePortfolio(entries) {
     : 0;
 
   // Share per type (% of total current value)
-  ['deposit', 'fund', 'gold'].forEach(type => {
+  ['deposit', 'fund', 'gold', 'usd'].forEach(type => {
     summary.byType[type].share = summary.totalValue > 0
       ? (summary.byType[type].value / summary.totalValue) * 100
       : 0;
@@ -182,6 +191,7 @@ function typeLabel(type) {
     deposit: 'Tiền gửi',
     fund: 'Quỹ mở',
     gold: 'Vàng',
+    usd: 'USD',
   }[type] || type;
 }
 

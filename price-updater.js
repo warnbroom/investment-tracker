@@ -152,6 +152,58 @@ function matchGoldPrice(dojiRows, goldType) {
 }
 
 /* ==========================================================================
+   USD — tỷ giá Vietcombank qua webgia.com
+   Lấy giá "Mua chuyển khoản" (cột thứ 4 trong bảng webgia VCB).
+   ========================================================================== */
+
+async function fetchUsdRate() {
+  const { text: html } = await fetchViaProxy('https://webgia.com/ty-gia/vietcombank/');
+  return parseUsdRate(html);
+}
+
+/**
+ * Parse bảng tỷ giá Vietcombank từ webgia.
+ * Format: <tr> có 5 <td>: [Mã, Tên, Mua TM, Mua CK, Bán TM]
+ * Tìm dòng USD, lấy cột 4 (index 3) = Mua chuyển khoản.
+ */
+function parseUsdRate(html) {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(html, 'text/html');
+
+  const trs = doc.querySelectorAll('tr');
+  for (const tr of trs) {
+    const tds = tr.querySelectorAll('td');
+    if (tds.length !== 5) continue;
+
+    const code = tds[0].textContent.trim().toUpperCase();
+    if (code !== 'USD') continue;
+
+    // Cột 4 (index 3) = Mua chuyển khoản
+    const buyTransferRaw = tds[3].textContent.trim();
+    // Format kiểu "26.125,00" — dấu chấm là hàng nghìn, dấu phẩy là thập phân
+    const cleaned = buyTransferRaw.replace(/\./g, '').replace(',', '.');
+    const rate = parseFloat(cleaned);
+
+    if (isNaN(rate) || rate < 10000) continue; // USD phải > 10k VND
+
+    return {
+      buyTransfer: Math.round(rate),
+      buyCash: parseVcbNumber(tds[2].textContent.trim()),
+      sellCash: parseVcbNumber(tds[4].textContent.trim()),
+      bank: 'Vietcombank',
+    };
+  }
+
+  return null;
+}
+
+function parseVcbNumber(text) {
+  const cleaned = text.replace(/\./g, '').replace(',', '.');
+  const num = parseFloat(cleaned);
+  return isNaN(num) ? 0 : Math.round(num);
+}
+
+/* ==========================================================================
    FUND — gọi API fmarket.vn (JSON)
    ========================================================================== */
 
@@ -212,10 +264,12 @@ async function updateAllPrices(onProgress = () => {}) {
   const entries = loadEntries();
   const fundEntries = entries.filter(e => e.type === 'fund');
   const goldEntries = entries.filter(e => e.type === 'gold');
+  const usdEntries = entries.filter(e => e.type === 'usd');
 
   const summary = {
     fundOk: 0, fundFail: 0,
     goldOk: 0, goldFail: 0,
+    usdOk: 0, usdFail: 0,
     errors: [],
   };
 
@@ -273,6 +327,30 @@ async function updateAllPrices(onProgress = () => {}) {
         entry._lastNavDate = priced.navDate;
         onProgress(`✓ ${entry.fundCode}: NAV ${formatMoney(priced.nav)} đ (${priced.navDate || 'không rõ ngày'})`, 'ok');
         summary.fundOk++;
+      }
+    }
+  }
+
+  // 3) USD (Vietcombank qua webgia)
+  if (usdEntries.length > 0) {
+    onProgress(`Tải tỷ giá USD Vietcombank…`, 'info');
+    let usdData = null;
+    try {
+      usdData = await fetchUsdRate();
+      if (!usdData) throw new Error('Không tìm thấy dòng USD trong bảng tỷ giá.');
+      onProgress(`VCB: USD mua chuyển khoản = ${formatMoney(usdData.buyTransfer)} đ`, 'ok');
+    } catch (e) {
+      onProgress(`USD thất bại: ${e.message}`, 'error');
+      summary.errors.push('USD: ' + e.message);
+      summary.usdFail = usdEntries.length;
+    }
+
+    if (usdData) {
+      for (const entry of usdEntries) {
+        entry.currentRate = usdData.buyTransfer;
+        entry._lastRateSource = 'Vietcombank (Mua CK)';
+        onProgress(`✓ ${entry.name}: ${formatMoney(usdData.buyTransfer)} đ/USD`, 'ok');
+        summary.usdOk++;
       }
     }
   }

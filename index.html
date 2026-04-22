@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Sổ Cái — Danh mục Đầu tư</title>
 <meta name="description" content="Quản lý và theo dõi danh mục đầu tư cá nhân: tiền gửi, quỹ mở, vàng." />
-<link rel="stylesheet" href="styles.css?v=2" />
+<link rel="stylesheet" href="styles.css?v=3" />
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='40' fill='%23b8471f'/%3E%3C/svg%3E" />
 </head>
 <body>
@@ -122,6 +122,21 @@
             <span class="pillar-meta-value" id="pillar-gold-count">—</span>
           </div>
         </div>
+
+        <div class="pillar">
+          <div class="pillar-num">№ 04</div>
+          <div class="pillar-name">USD</div>
+          <div class="pillar-name-en">US Dollar holdings</div>
+          <div class="pillar-value" id="pillar-usd-value">0<span class="num-currency">đ</span></div>
+          <div class="pillar-meta">
+            <span class="pillar-meta-label">Tỷ trọng</span>
+            <span class="pillar-meta-value" id="pillar-usd-share">—</span>
+          </div>
+          <div class="pillar-meta" style="border-top: none; padding-top: 0; margin-top: 0.25rem;">
+            <span class="pillar-meta-label">Số giao dịch</span>
+            <span class="pillar-meta-value" id="pillar-usd-count">—</span>
+          </div>
+        </div>
       </div>
 
       <!-- Allocation bar -->
@@ -145,6 +160,10 @@
           <div class="alloc-legend-item">
             <span class="alloc-swatch" style="background: var(--gold);"></span>
             Vàng <span class="num" id="legend-gold">0%</span>
+          </div>
+          <div class="alloc-legend-item">
+            <span class="alloc-swatch" style="background: var(--usd);"></span>
+            USD <span class="num" id="legend-usd">0%</span>
           </div>
         </div>
       </div>
@@ -173,8 +192,8 @@
   </div>
 </footer>
 
-<script src="app.js?v=2"></script>
-<script src="price-updater.js?v=2"></script>
+<script src="app.js?v=3"></script>
+<script src="price-updater.js?v=3"></script>
 <script>
 (function () {
   const entries = loadEntries();
@@ -201,7 +220,7 @@
   pctEl.classList.add(s.totalGainPct >= 0 ? 'delta-positive' : 'delta-negative');
 
   // Pillars
-  ['deposit', 'fund', 'gold'].forEach(type => {
+  ['deposit', 'fund', 'gold', 'usd'].forEach(type => {
     const t = s.byType[type];
     document.getElementById(`pillar-${type}-value`).innerHTML =
       formatMoney(t.value) + '<span class="num-currency">đ</span>';
@@ -217,6 +236,7 @@
       { key: 'deposit', cls: 'alloc-seg-deposit', label: 'Tiền gửi' },
       { key: 'fund',    cls: 'alloc-seg-fund',    label: 'Quỹ mở'   },
       { key: 'gold',    cls: 'alloc-seg-gold',    label: 'Vàng'     },
+      { key: 'usd',     cls: 'alloc-seg-usd',     label: 'USD'      },
     ];
     types.forEach(t => {
       const share = s.byType[t.key].share;
@@ -237,6 +257,7 @@
   document.getElementById('legend-deposit').textContent = s.byType.deposit.share.toFixed(1) + '%';
   document.getElementById('legend-fund').textContent = s.byType.fund.share.toFixed(1) + '%';
   document.getElementById('legend-gold').textContent = s.byType.gold.share.toFixed(1) + '%';
+  document.getElementById('legend-usd').textContent = s.byType.usd.share.toFixed(1) + '%';
 
   // Recent entries table
   const wrap = document.getElementById('recent-wrap');
