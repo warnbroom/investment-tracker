@@ -4,7 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Phân tích — Sổ Cái</title>
-<link rel="stylesheet" href="styles.css?v=2" />
+<link rel="stylesheet" href="styles.css?v=3" />
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='40' fill='%23b8471f'/%3E%3C/svg%3E" />
 </head>
 <body>
@@ -118,6 +118,10 @@
             <span class="alloc-swatch" style="background: var(--gold);"></span>
             Vàng
           </div>
+          <div class="alloc-legend-item">
+            <span class="alloc-swatch" style="background: var(--usd);"></span>
+            USD
+          </div>
         </div>
       </div>
 
@@ -161,8 +165,8 @@
   </div>
 </footer>
 
-<script src="app.js?v=2"></script>
-<script src="price-updater.js?v=2"></script>
+<script src="app.js?v=3"></script>
+<script src="price-updater.js?v=3"></script>
 <script>
 (function () {
   const entries = loadEntries();
@@ -181,10 +185,11 @@
     deposit: { bg: 'var(--ink)', label: 'Tiền gửi' },
     fund:    { bg: 'var(--accent)', label: 'Quỹ mở' },
     gold:    { bg: 'var(--gold)', label: 'Vàng' },
+    usd:     { bg: 'var(--usd)', label: 'USD' },
   };
 
   const breakdownEl = document.getElementById('breakdown-type');
-  ['deposit','fund','gold'].forEach(type => {
+  ['deposit','fund','gold','usd'].forEach(type => {
     const t = s.byType[type];
     const gainClass = t.gain >= 0 ? 'delta-positive' : 'delta-negative';
     const gainSign = t.gain >= 0 ? '+' : '';
@@ -225,6 +230,7 @@
       { key: 'deposit', color: '#1a1613' },
       { key: 'fund',    color: '#b8471f' },
       { key: 'gold',    color: '#c9974a' },
+      { key: 'usd',     color: '#2d5a52' },
     ];
 
     // Background ring
