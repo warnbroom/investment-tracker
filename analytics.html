@@ -4,7 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Phân tích — Sổ Cái</title>
-<link rel="stylesheet" href="styles.css?v=4" />
+<link rel="stylesheet" href="styles.css?v=5" />
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='40' fill='%23b8471f'/%3E%3C/svg%3E" />
 </head>
 <body>
@@ -46,14 +46,17 @@
   <div class="container">
     <div class="analytics-grid">
 
-      <!-- Price updater -->
+      <!-- Proxy config -->
       <div class="analytics-card full" id="updater-card">
         <div style="display:flex; justify-content:space-between; align-items:baseline; flex-wrap:wrap; gap:1rem;">
           <div>
-            <h3>Cập nhật giá <em>từ nguồn trực tiếp</em></h3>
+            <h3>Cấu hình proxy <em>để lấy giá</em></h3>
             <div class="sub">
-              Vàng &mdash; <a href="https://giavang.doji.vn" target="_blank" rel="noopener" style="color:var(--accent); text-decoration:underline; text-underline-offset:2px;">giavang.doji.vn</a> ·
+              Vàng (DOJI) &amp; tỷ giá USD &mdash; <a href="https://webgia.com" target="_blank" rel="noopener" style="color:var(--accent); text-decoration:underline; text-underline-offset:2px;">webgia.com</a> ·
               Quỹ mở &mdash; <a href="https://fmarket.vn" target="_blank" rel="noopener" style="color:var(--accent); text-decoration:underline; text-underline-offset:2px;">fmarket.vn</a>
+            </div>
+            <div class="sub" style="margin-top: 0.5rem;">
+              Sau khi cấu hình proxy, dùng nút <strong>↻ Cập nhật giá</strong> ở trang <a href="entries.html" style="color:var(--accent); text-decoration:underline; text-underline-offset:2px;">Nhập liệu</a>.
             </div>
           </div>
           <div style="text-align:right; font-family: var(--font-mono); font-size: 0.75rem; color: var(--ink-mute); line-height: 1.7;">
@@ -80,15 +83,6 @@
           </div>
           <div id="proxy-test-result" style="margin-top:0.75rem; font-family: var(--font-mono); font-size: 0.78rem; line-height: 1.5; display:none;"></div>
         </div>
-
-        <div style="display:flex; gap:1rem; flex-wrap:wrap; margin-top: 1.5rem; align-items:center;">
-          <button class="btn btn-primary" id="btn-update-prices">↻ Cập nhật giá ngay</button>
-          <span style="color: var(--ink-mute); font-size: 0.82rem; font-style: italic;" id="updater-hint">
-            Scrape qua Cloudflare Worker. Mỗi lần mất ~2-5s.
-          </span>
-        </div>
-
-        <div id="updater-log" style="display:none; margin-top:1.5rem; padding:1rem 1.25rem; background: var(--paper); border: 1px solid var(--rule-strong); font-family: var(--font-mono); font-size: 0.82rem; line-height: 1.75; max-height: 280px; overflow-y: auto;"></div>
       </div>
 
       <!-- Performance by type -->
@@ -165,8 +159,8 @@
   </div>
 </footer>
 
-<script src="app.js?v=4"></script>
-<script src="price-updater.js?v=4"></script>
+<script src="app.js?v=5"></script>
+<script src="price-updater.js?v=5"></script>
 <script>
 (function () {
   const entries = loadEntries();
@@ -428,12 +422,8 @@
 
   console.log('[Sổ Cái] Proxy handlers attached OK');
 
-  /* ---- Price updater ---- */
-  const updateBtn = document.getElementById('btn-update-prices');
-  const updateLog = document.getElementById('updater-log');
+  /* ---- Last-update display ---- */
   const lastUpdateEl = document.getElementById('last-update-time');
-
-  // Show last update time if exists
   const lastUpd = getLastPriceUpdate();
   if (lastUpd && lastUpd.lastUpdate) {
     const d = new Date(lastUpd.lastUpdate);
@@ -442,64 +432,6 @@
       hour: '2-digit', minute: '2-digit',
     });
   }
-
-  // Hide button if no fund/gold entries
-  const hasPriceable = entries.some(e => e.type === 'fund' || e.type === 'gold');
-  if (!hasPriceable) {
-    updateBtn.disabled = true;
-    updateBtn.style.opacity = '0.4';
-    updateBtn.style.cursor = 'not-allowed';
-    document.getElementById('updater-hint').textContent = 'Chưa có mục quỹ mở hoặc vàng nào để cập nhật.';
-  }
-
-  function logLine(msg, kind = 'info') {
-    updateLog.style.display = 'block';
-    const colors = {
-      info:  'var(--ink-mute)',
-      ok:    'var(--green)',
-      warn:  '#c9974a',
-      error: 'var(--red)',
-    };
-    const div = document.createElement('div');
-    div.style.color = colors[kind] || 'var(--ink)';
-    const time = new Date().toLocaleTimeString('vi-VN', { hour12: false });
-    div.innerHTML = `<span style="opacity:0.5">[${time}]</span> ${escapeHtml(msg)}`;
-    updateLog.appendChild(div);
-    updateLog.scrollTop = updateLog.scrollHeight;
-  }
-
-  updateBtn.addEventListener('click', async () => {
-    if (!hasProxy()) {
-      toast('Chưa cấu hình proxy — xem ô Cloudflare Worker Proxy ở trên');
-      document.getElementById('proxy-box').scrollIntoView({ behavior: 'smooth', block: 'center' });
-      proxyInput.focus();
-      return;
-    }
-
-    updateBtn.disabled = true;
-    updateBtn.textContent = '↻ Đang cập nhật…';
-    updateBtn.style.opacity = '0.6';
-    updateLog.innerHTML = '';
-
-    try {
-      const summary = await updateAllPrices(logLine);
-      logLine('─────────────────────────', 'info');
-      logLine(`Hoàn tất. Vàng: ${summary.goldOk} ✓ / ${summary.goldFail} ✗  ·  Quỹ: ${summary.fundOk} ✓ / ${summary.fundFail} ✗`,
-        summary.goldFail + summary.fundFail === 0 ? 'ok' : 'warn');
-      toast('Đã cập nhật giá');
-
-      if (summary.goldOk + summary.fundOk > 0) {
-        setTimeout(() => location.reload(), 1500);
-      }
-    } catch (e) {
-      logLine('Lỗi: ' + e.message, 'error');
-      toast('Cập nhật thất bại');
-    } finally {
-      updateBtn.disabled = false;
-      updateBtn.textContent = '↻ Cập nhật giá ngay';
-      updateBtn.style.opacity = '';
-    }
-  });
 
   /* ---- Data management ---- */
   document.getElementById('btn-export').addEventListener('click', () => {
