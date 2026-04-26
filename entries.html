@@ -4,7 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Nhập liệu — Sổ Cái</title>
-<link rel="stylesheet" href="styles.css?v=3" />
+<link rel="stylesheet" href="styles.css?v=4" />
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='40' fill='%23b8471f'/%3E%3C/svg%3E" />
 </head>
 <body>
@@ -227,7 +227,7 @@
         <button class="filter-chip" data-filter="usd">USD</button>
       </div>
 
-      <div id="entries-list-wrap"><!-- populated by JS --></div>
+      <div id="entries-list-wrap" style="overflow-x: auto;"><!-- populated by JS --></div>
     </div>
   </section>
 </main>
@@ -239,8 +239,8 @@
   </div>
 </footer>
 
-<script src="app.js?v=3"></script>
-<script src="price-updater.js?v=3"></script>
+<script src="app.js?v=4"></script>
+<script src="price-updater.js?v=4"></script>
 <script>
 (function () {
 
@@ -417,6 +417,14 @@
   /* ---- List render ---- */
   let currentFilter = 'all';
 
+  function getEntrySubLabel(e) {
+    if (e.type === 'deposit') return e.bank || '';
+    if (e.type === 'fund') return [e.fundCode, e.fundCompany].filter(Boolean).join(' · ');
+    if (e.type === 'gold') return [e.goldType, e.store].filter(Boolean).join(' · ');
+    if (e.type === 'usd') return e.source || '';
+    return '';
+  }
+
   function renderEntriesList() {
     const entries = loadEntries();
     const filtered = currentFilter === 'all' ? entries : entries.filter(e => e.type === currentFilter);
@@ -436,17 +444,28 @@
       return;
     }
 
+    // Today date for header
+    const today = new Date();
+    const todayStr = today.getDate().toString().padStart(2,'0') + '/' +
+                     (today.getMonth()+1).toString().padStart(2,'0') + '/' +
+                     today.getFullYear();
+
     let html = `
       <table class="ledger-table">
         <thead>
           <tr>
-            <th style="width: 110px;">Loại</th>
+            <th style="width: 90px;">Loại</th>
             <th>Tên</th>
-            <th class="hide-mobile">Chi tiết</th>
-            <th class="hide-mobile" style="width: 120px;">Ngày</th>
-            <th class="num-col" style="width: 140px;">Giá trị hiện tại</th>
-            <th class="num-col" style="width: 100px;">Lợi nhuận</th>
-            <th style="width: 60px;"></th>
+            <th class="hide-mobile" style="width: 110px;">Ngày mua vào</th>
+            <th class="num-col hide-mobile" style="width: 130px;">Đơn giá thời điểm mua</th>
+            <th class="num-col hide-mobile" style="width: 100px;">Số lượng</th>
+            <th class="num-col" style="width: 130px;">Tổng vốn</th>
+            <th class="num-col hide-mobile" style="width: 130px;">Đơn giá hiện tại<br><span style="font-weight:400; color:var(--ink-mute); font-size:0.7rem;">(${todayStr})</span></th>
+            <th class="num-col" style="width: 110px;">Lợi nhuận</th>
+            <th class="num-col" style="width: 130px;">Tổng tài sản</th>
+            <th class="num-col" style="width: 90px;">Tỷ lệ ±</th>
+            <th class="hide-mobile" style="width: 130px;">Ghi chú</th>
+            <th style="width: 50px;"></th>
           </tr>
         </thead>
         <tbody>`;
@@ -455,25 +474,52 @@
       const gainClass = v.gain >= 0 ? 'delta-positive' : 'delta-negative';
       const gainSign = v.gain >= 0 ? '+' : '';
 
-      let detail = '';
+      // Tính các trường tuỳ theo loại
+      let qty = '—', qtyUnit = '';
+      let buyUnitPrice = '—', buyUnitSuffix = '';
+      let currentUnitPrice = '—';
+
       if (e.type === 'deposit') {
-        detail = `${e.bank || '—'} · ${e.rate || 0}%/năm · ${e.termMonths || 0}t`;
+        // Tiền gửi: không có "đơn vị", hiển thị lãi suất ở đơn giá
+        qty = '—';
+        buyUnitPrice = (e.rate || 0) + '%/năm';
+        currentUnitPrice = (e.termMonths || 0) + ' tháng';
       } else if (e.type === 'fund') {
-        detail = `${e.fundCode || '—'} · ${Number(e.units || 0).toLocaleString('vi-VN')} CCQ`;
+        qty = Number(e.units || 0).toLocaleString('vi-VN');
+        qtyUnit = 'CCQ';
+        buyUnitPrice = formatMoney(Number(e.buyNav) || 0);
+        currentUnitPrice = formatMoney(Number(e.currentNav) || Number(e.buyNav) || 0);
       } else if (e.type === 'gold') {
-        detail = `${e.goldType || '—'} · ${e.weight || 0} chỉ`;
+        qty = (Number(e.weight) || 0).toString();
+        qtyUnit = 'chỉ';
+        buyUnitPrice = formatMoney(Number(e.buyPrice) || 0);
+        currentUnitPrice = formatMoney(Number(e.currentPrice) || Number(e.buyPrice) || 0);
       } else if (e.type === 'usd') {
-        detail = `${Number(e.usdAmount || 0).toLocaleString('vi-VN')} USD · ${e.source || '—'}`;
+        qty = Number(e.usdAmount || 0).toLocaleString('vi-VN');
+        qtyUnit = 'USD';
+        buyUnitPrice = formatMoney(Number(e.buyRate) || 0);
+        currentUnitPrice = formatMoney(Number(e.currentRate) || Number(e.buyRate) || 0);
       }
+
+      const note = e.note || '';
+      const noteShort = note.length > 30 ? note.slice(0, 30) + '…' : note;
 
       html += `
         <tr>
           <td><span class="type-tag ${e.type}">${typeLabel(e.type)}</span></td>
-          <td>${escapeHtml(e.name || '')}</td>
-          <td class="hide-mobile" style="color:var(--ink-mute); font-size:0.82rem;">${escapeHtml(detail)}</td>
-          <td class="hide-mobile num-col" style="text-align:left; color:var(--ink-mute);">${formatDate(e.startDate || e.createdAt)}</td>
+          <td>
+            <div>${escapeHtml(e.name || '')}</div>
+            <div style="color:var(--ink-mute); font-size:0.72rem; margin-top:0.15rem;">${escapeHtml(getEntrySubLabel(e))}</div>
+          </td>
+          <td class="hide-mobile" style="color:var(--ink-mute);">${formatDate(e.startDate || e.createdAt)}</td>
+          <td class="num-col hide-mobile">${buyUnitPrice}</td>
+          <td class="num-col hide-mobile">${qty}${qtyUnit ? ' <span style="color:var(--ink-mute); font-size:0.72rem;">' + qtyUnit + '</span>' : ''}</td>
+          <td class="num-col">${formatMoney(v.principal)}</td>
+          <td class="num-col hide-mobile">${currentUnitPrice}</td>
+          <td class="num-col ${gainClass}">${gainSign}${formatMoney(v.gain)}</td>
           <td class="num-col">${formatMoney(v.currentValue)}</td>
           <td class="num-col ${gainClass}">${gainSign}${formatPct(v.gainPct, false)}</td>
+          <td class="hide-mobile" style="color:var(--ink-mute); font-size:0.78rem;" title="${escapeHtml(note)}">${escapeHtml(noteShort)}</td>
           <td>
             <button class="delete-btn" data-id="${e.id}" title="Xoá">✕</button>
           </td>

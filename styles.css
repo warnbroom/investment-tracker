@@ -550,7 +550,7 @@ h1, h2, h3, h4 {
 .ledger-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 0.9rem;
+  font-size: 0.85rem;
 }
 
 .ledger-table thead {
@@ -560,13 +560,14 @@ h1, h2, h3, h4 {
 
 .ledger-table th {
   text-align: left;
-  padding: 0.85rem 1rem;
+  padding: 0.65rem 0.6rem;
   font-family: var(--font-mono);
-  font-size: 0.7rem;
-  letter-spacing: 0.12em;
+  font-size: 0.66rem;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--ink-mute);
   font-weight: 500;
+  vertical-align: bottom;
 }
 
 .ledger-table th.num-col,
@@ -584,7 +585,7 @@ h1, h2, h3, h4 {
 }
 
 .ledger-table td {
-  padding: 1rem;
+  padding: 0.75rem 0.6rem;
   vertical-align: baseline;
 }
 
