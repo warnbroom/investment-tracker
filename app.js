@@ -184,11 +184,17 @@ function computePortfolio(entries) {
 function formatMoney(n, opts = {}) {
   const value = Number(n) || 0;
   const abs = Math.abs(value);
+  const decimals = opts.decimals;
   let formatted;
   if (opts.compact && abs >= 1e9) {
     formatted = (value / 1e9).toFixed(2).replace(/\.00$/, '') + ' tỷ';
   } else if (opts.compact && abs >= 1e6) {
     formatted = (value / 1e6).toFixed(1).replace(/\.0$/, '') + ' tr';
+  } else if (typeof decimals === 'number') {
+    formatted = new Intl.NumberFormat('vi-VN', {
+      minimumFractionDigits: decimals,
+      maximumFractionDigits: decimals,
+    }).format(value);
   } else {
     formatted = new Intl.NumberFormat('vi-VN', {
       maximumFractionDigits: 0,

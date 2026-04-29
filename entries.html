@@ -4,7 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Nhập liệu — Sổ Cái</title>
-<link rel="stylesheet" href="styles.css?v=6" />
+<link rel="stylesheet" href="styles.css?v=7" />
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='40' fill='%23b8471f'/%3E%3C/svg%3E" />
 </head>
 <body>
@@ -82,7 +82,7 @@
             </div>
             <div class="form-field deposit-field">
               <label for="f-amount">Số tiền gửi <span class="hint">VND</span></label>
-              <input type="number" id="f-amount" name="amount" min="0" step="1000" placeholder="100000000" />
+              <input type="number" id="f-amount" name="amount" min="0" step="0.01" placeholder="100000000" />
             </div>
             <div class="form-field deposit-field">
               <label for="f-rate">Lãi suất năm <span class="hint">%/năm</span></label>
@@ -120,14 +120,14 @@
             </div>
             <div class="form-field fund-field" style="display:none;">
               <label for="f-buyNav">NAV lúc mua <span class="hint">đ/CCQ</span></label>
-              <input type="number" id="f-buyNav" name="buyNav" min="0" step="1" placeholder="25000" />
+              <input type="number" id="f-buyNav" name="buyNav" min="0" step="0.01" placeholder="25000" />
             </div>
             <div class="form-field fund-field" style="display:none;">
               <label for="f-currentNav">
                 <span>NAV hiện tại <span class="hint">đ/CCQ</span></span>
                 <button type="button" class="mini-fetch-btn" id="fetch-nav-btn" title="Lấy NAV từ Fmarket">↻ Tự lấy</button>
               </label>
-              <input type="number" id="f-currentNav" name="currentNav" min="0" step="1" placeholder="26500" />
+              <input type="number" id="f-currentNav" name="currentNav" min="0" step="0.01" placeholder="26500" />
             </div>
             <div class="form-field fund-field" style="display:none;">
               <label for="f-startDate-f">Ngày mua</label>
@@ -151,14 +151,14 @@
             </div>
             <div class="form-field gold-field" style="display:none;">
               <label for="f-buyPrice">Giá mua <span class="hint">đ / chỉ</span></label>
-              <input type="number" id="f-buyPrice" name="buyPrice" min="0" step="1000" placeholder="7500000" />
+              <input type="number" id="f-buyPrice" name="buyPrice" min="0" step="0.01" placeholder="7500000" />
             </div>
             <div class="form-field gold-field" style="display:none;">
               <label for="f-currentPrice">
                 <span>Giá hiện tại <span class="hint">đ / chỉ</span></span>
                 <button type="button" class="mini-fetch-btn" id="fetch-gold-btn" title="Lấy giá DOJI (qua webgia.com)">↻ Tự lấy</button>
               </label>
-              <input type="number" id="f-currentPrice" name="currentPrice" min="0" step="1000" placeholder="8200000" />
+              <input type="number" id="f-currentPrice" name="currentPrice" min="0" step="0.01" placeholder="8200000" />
             </div>
             <div class="form-field gold-field" style="display:none;">
               <label for="f-startDate-g">Ngày mua</label>
@@ -172,18 +172,18 @@
             <!-- USD fields -->
             <div class="form-field usd-field" style="display:none;">
               <label for="f-usdAmount">Số USD <span class="hint">đơn vị USD</span></label>
-              <input type="number" id="f-usdAmount" name="usdAmount" min="0" step="1" placeholder="1000" />
+              <input type="number" id="f-usdAmount" name="usdAmount" min="0" step="0.01" placeholder="1000" />
             </div>
             <div class="form-field usd-field" style="display:none;">
               <label for="f-buyRate">Tỷ giá mua <span class="hint">đ / USD</span></label>
-              <input type="number" id="f-buyRate" name="buyRate" min="0" step="1" placeholder="25800" />
+              <input type="number" id="f-buyRate" name="buyRate" min="0" step="0.01" placeholder="25800" />
             </div>
             <div class="form-field usd-field" style="display:none;">
               <label for="f-currentRate">
                 <span>Tỷ giá hiện tại <span class="hint">đ / USD</span></span>
                 <button type="button" class="mini-fetch-btn" id="fetch-usd-btn" title="Lấy tỷ giá Mua CK Vietcombank">↻ Tự lấy</button>
               </label>
-              <input type="number" id="f-currentRate" name="currentRate" min="0" step="1" placeholder="26125" />
+              <input type="number" id="f-currentRate" name="currentRate" min="0" step="0.01" placeholder="26125" />
             </div>
             <div class="form-field usd-field" style="display:none;">
               <label for="f-startDate-u">Ngày mua</label>
@@ -253,8 +253,8 @@
   </div>
 </footer>
 
-<script src="app.js?v=6"></script>
-<script src="price-updater.js?v=6"></script>
+<script src="app.js?v=7"></script>
+<script src="price-updater.js?v=7"></script>
 <script>
 (function () {
 
@@ -327,7 +327,7 @@
       if (!matched) {
         toast(`Không tìm thấy quỹ "${code}" trên Fmarket`);
       } else {
-        document.getElementById('f-currentNav').value = Math.round(matched.nav);
+        document.getElementById('f-currentNav').value = matched.nav;
         toast(`${code}: NAV ${formatMoney(matched.nav)} đ`);
       }
     } catch (e) {
@@ -350,7 +350,7 @@
       if (!matched) {
         toast(`Không tìm thấy loại "${goldType}" trên bảng giá`);
       } else {
-        document.getElementById('f-currentPrice').value = Math.round(matched.buy);
+        document.getElementById('f-currentPrice').value = matched.buy;
         toast(`${matched.matchedName}: ${formatMoney(matched.buy)} đ/chỉ`);
       }
     } catch (e) {
@@ -605,20 +605,20 @@
         buyUnitPrice = (e.rate || 0) + '%/năm';
         currentUnitPrice = (e.termMonths || 0) + ' tháng';
       } else if (e.type === 'fund') {
-        qty = Number(e.units || 0).toLocaleString('vi-VN');
+        qty = Number(e.units || 0).toLocaleString('vi-VN', { maximumFractionDigits: 2 });
         qtyUnit = 'CCQ';
-        buyUnitPrice = formatMoney(Number(e.buyNav) || 0);
-        currentUnitPrice = formatMoney(Number(e.currentNav) || Number(e.buyNav) || 0);
+        buyUnitPrice = formatMoney(Number(e.buyNav) || 0, { decimals: 2 });
+        currentUnitPrice = formatMoney(Number(e.currentNav) || Number(e.buyNav) || 0, { decimals: 2 });
       } else if (e.type === 'gold') {
-        qty = (Number(e.weight) || 0).toString();
+        qty = Number(e.weight || 0).toLocaleString('vi-VN', { maximumFractionDigits: 2 });
         qtyUnit = 'chỉ';
-        buyUnitPrice = formatMoney(Number(e.buyPrice) || 0);
-        currentUnitPrice = formatMoney(Number(e.currentPrice) || Number(e.buyPrice) || 0);
+        buyUnitPrice = formatMoney(Number(e.buyPrice) || 0, { decimals: 2 });
+        currentUnitPrice = formatMoney(Number(e.currentPrice) || Number(e.buyPrice) || 0, { decimals: 2 });
       } else if (e.type === 'usd') {
-        qty = Number(e.usdAmount || 0).toLocaleString('vi-VN');
+        qty = Number(e.usdAmount || 0).toLocaleString('vi-VN', { maximumFractionDigits: 2 });
         qtyUnit = 'USD';
-        buyUnitPrice = formatMoney(Number(e.buyRate) || 0);
-        currentUnitPrice = formatMoney(Number(e.currentRate) || Number(e.buyRate) || 0);
+        buyUnitPrice = formatMoney(Number(e.buyRate) || 0, { decimals: 2 });
+        currentUnitPrice = formatMoney(Number(e.currentRate) || Number(e.buyRate) || 0, { decimals: 2 });
       }
 
       const note = e.note || '';

@@ -187,7 +187,7 @@ function parseUsdRate(html) {
     if (isNaN(rate) || rate < 10000) continue; // USD phải > 10k VND
 
     return {
-      buyTransfer: Math.round(rate),
+      buyTransfer: rate,
       buyCash: parseVcbNumber(tds[2].textContent.trim()),
       sellCash: parseVcbNumber(tds[4].textContent.trim()),
       bank: 'Vietcombank',
@@ -200,7 +200,7 @@ function parseUsdRate(html) {
 function parseVcbNumber(text) {
   const cleaned = text.replace(/\./g, '').replace(',', '.');
   const num = parseFloat(cleaned);
-  return isNaN(num) ? 0 : Math.round(num);
+  return isNaN(num) ? 0 : num;
 }
 
 /* ==========================================================================
