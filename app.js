@@ -42,6 +42,31 @@ function deleteEntry(id) {
   saveEntries(entries);
 }
 
+function getEntryById(id) {
+  return loadEntries().find(e => e.id === id) || null;
+}
+
+/**
+ * Cập nhật một entry đã có. Giữ nguyên id và createdAt,
+ * thay thế các field khác bằng dữ liệu mới.
+ */
+function updateEntry(id, newData) {
+  const entries = loadEntries();
+  const idx = entries.findIndex(e => e.id === id);
+  if (idx === -1) return null;
+  // Merge: giữ id, createdAt; cho phép newData ghi đè mọi thứ khác
+  const updated = {
+    ...entries[idx],
+    ...newData,
+    id: entries[idx].id,
+    createdAt: entries[idx].createdAt,
+    updatedAt: new Date().toISOString(),
+  };
+  entries[idx] = updated;
+  saveEntries(entries);
+  return updated;
+}
+
 /* -------------------- Calculations -------------------- */
 
 // For each entry, compute principal (vốn) and current value (giá trị hiện tại)

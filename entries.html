@@ -4,7 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Nhập liệu — Sổ Cái</title>
-<link rel="stylesheet" href="styles.css?v=5" />
+<link rel="stylesheet" href="styles.css?v=6" />
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='40' fill='%23b8471f'/%3E%3C/svg%3E" />
 </head>
 <body>
@@ -201,8 +201,9 @@
             </div>
 
             <div class="form-actions">
-              <button type="reset" class="btn btn-ghost">Xóa trắng</button>
-              <button type="submit" class="btn btn-primary">Lưu vào sổ &rarr;</button>
+              <button type="button" class="btn btn-ghost" id="btn-cancel-edit" style="display:none;">Huỷ sửa</button>
+              <button type="reset" class="btn btn-ghost" id="btn-reset">Xóa trắng</button>
+              <button type="submit" class="btn btn-primary" id="btn-submit">Lưu vào sổ &rarr;</button>
             </div>
           </form>
         </div>
@@ -252,8 +253,8 @@
   </div>
 </footer>
 
-<script src="app.js?v=5"></script>
-<script src="price-updater.js?v=5"></script>
+<script src="app.js?v=6"></script>
+<script src="price-updater.js?v=6"></script>
 <script>
 (function () {
 
@@ -288,7 +289,18 @@
   }
 
   typeButtons.forEach(btn => {
-    btn.addEventListener('click', () => switchType(btn.dataset.type));
+    btn.addEventListener('click', () => {
+      // Nếu đang edit mục type khác → tự động huỷ edit, vì không thể edit cross-type
+      if (currentEditId) {
+        const editingEntry = getEntryById(currentEditId);
+        if (editingEntry && editingEntry.type !== btn.dataset.type) {
+          exitEditMode();
+          renderEntriesList();
+          toast('Đã huỷ sửa do đổi loại');
+        }
+      }
+      switchType(btn.dataset.type);
+    });
   });
 
   // Default date for today
@@ -416,19 +428,110 @@
       return;
     }
 
-    addEntry(entry);
-    toast('Đã lưu vào sổ');
+    if (currentEditId) {
+      // Edit mode — update existing entry
+      updateEntry(currentEditId, entry);
+      toast('Đã cập nhật');
+      exitEditMode();
+    } else {
+      // Add mode — create new
+      addEntry(entry);
+      toast('Đã lưu vào sổ');
+      form.reset();
+      // reset dates
+      ['f-startDate-d','f-startDate-f','f-startDate-g','f-startDate-u'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = today;
+      });
+    }
+    renderEntriesList();
+  });
+
+  /* ---- List render & edit ---- */
+  let currentFilter = 'all';
+  let currentEditId = null;
+
+  const submitBtn = document.getElementById('btn-submit');
+  const cancelEditBtn = document.getElementById('btn-cancel-edit');
+  const resetBtn = document.getElementById('btn-reset');
+
+  function enterEditMode(id) {
+    const e = getEntryById(id);
+    if (!e) { toast('Không tìm thấy mục'); return; }
+
+    currentEditId = id;
+
+    // Switch tab to entry's type (this also shows the right fields)
+    switchType(e.type);
+
+    // Populate form fields based on type
+    const setVal = (name, val) => {
+      const el = document.querySelector(`[name="${name}"]`);
+      if (el) el.value = (val === undefined || val === null) ? '' : val;
+    };
+    setVal('name', e.name);
+    setVal('note', e.note);
+
+    if (e.type === 'deposit') {
+      setVal('bank', e.bank);
+      setVal('amount', e.amount);
+      setVal('rate', e.rate);
+      setVal('termMonths', e.termMonths);
+      setVal('interestType', e.interestType);
+      const d = document.getElementById('f-startDate-d');
+      if (d) d.value = e.startDate || '';
+    } else if (e.type === 'fund') {
+      setVal('fundCode', e.fundCode);
+      setVal('fundCompany', e.fundCompany);
+      setVal('units', e.units);
+      setVal('buyNav', e.buyNav);
+      setVal('currentNav', e.currentNav);
+      const d = document.getElementById('f-startDate-f');
+      if (d) d.value = e.startDate || '';
+    } else if (e.type === 'gold') {
+      setVal('goldType', e.goldType);
+      setVal('weight', e.weight);
+      setVal('buyPrice', e.buyPrice);
+      setVal('currentPrice', e.currentPrice);
+      setVal('store', e.store);
+      const d = document.getElementById('f-startDate-g');
+      if (d) d.value = e.startDate || '';
+    } else if (e.type === 'usd') {
+      setVal('usdAmount', e.usdAmount);
+      setVal('buyRate', e.buyRate);
+      setVal('currentRate', e.currentRate);
+      setVal('source', e.source);
+      const d = document.getElementById('f-startDate-u');
+      if (d) d.value = e.startDate || '';
+    }
+
+    // Update UI: nút Submit text + show Cancel + scroll lên form
+    submitBtn.innerHTML = '✎ Cập nhật &rarr;';
+    cancelEditBtn.style.display = '';
+    resetBtn.style.display = 'none';
+
+    // Scroll lên form
+    document.querySelector('.entry-form-wrap').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    toast('Đang sửa: ' + (e.name || '...'));
+  }
+
+  function exitEditMode() {
+    currentEditId = null;
+    submitBtn.innerHTML = 'Lưu vào sổ &rarr;';
+    cancelEditBtn.style.display = 'none';
+    resetBtn.style.display = '';
     form.reset();
-    // reset dates
     ['f-startDate-d','f-startDate-f','f-startDate-g','f-startDate-u'].forEach(id => {
       const el = document.getElementById(id);
       if (el) el.value = today;
     });
-    renderEntriesList();
-  });
+  }
 
-  /* ---- List render ---- */
-  let currentFilter = 'all';
+  cancelEditBtn.addEventListener('click', () => {
+    exitEditMode();
+    renderEntriesList(); // Bỏ highlight dòng đang sửa
+    toast('Đã huỷ sửa');
+  });
 
   function getEntrySubLabel(e) {
     if (e.type === 'deposit') return e.bank || '';
@@ -482,7 +585,7 @@
             <th class="num-col" style="width: 130px;">Tổng tài sản</th>
             <th class="num-col" style="width: 90px;">Tỷ lệ ±</th>
             <th class="hide-mobile" style="width: 130px;">Ghi chú</th>
-            <th style="width: 50px;"></th>
+            <th style="width: 80px;"></th>
           </tr>
         </thead>
         <tbody>`;
@@ -521,8 +624,9 @@
       const note = e.note || '';
       const noteShort = note.length > 30 ? note.slice(0, 30) + '…' : note;
 
+      const editingClass = (currentEditId === e.id) ? ' style="background: rgba(184, 71, 31, 0.07);"' : '';
       html += `
-        <tr>
+        <tr data-id="${e.id}"${editingClass}>
           <td><span class="type-tag ${e.type}">${typeLabel(e.type)}</span></td>
           <td>
             <div>${escapeHtml(e.name || '')}</div>
@@ -537,7 +641,8 @@
           <td class="num-col">${formatMoney(v.currentValue)}</td>
           <td class="num-col ${gainClass}">${gainSign}${formatPct(v.gainPct, false)}</td>
           <td class="hide-mobile" style="color:var(--ink-mute); font-size:0.78rem;" title="${escapeHtml(note)}">${escapeHtml(noteShort)}</td>
-          <td>
+          <td style="white-space: nowrap;">
+            <button class="edit-btn" data-id="${e.id}" title="Sửa">✎</button>
             <button class="delete-btn" data-id="${e.id}" title="Xoá">✕</button>
           </td>
         </tr>`;
@@ -548,10 +653,21 @@
     wrap.querySelectorAll('.delete-btn').forEach(btn => {
       btn.addEventListener('click', () => {
         if (confirm('Xoá mục này khỏi sổ?')) {
+          // Nếu đang edit chính mục bị xoá → exit edit mode trước
+          if (currentEditId === btn.dataset.id) {
+            exitEditMode();
+          }
           deleteEntry(btn.dataset.id);
           toast('Đã xoá');
           renderEntriesList();
         }
+      });
+    });
+
+    wrap.querySelectorAll('.edit-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        enterEditMode(btn.dataset.id);
+        renderEntriesList(); // Re-render để highlight dòng đang edit
       });
     });
   }

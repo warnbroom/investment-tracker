@@ -939,19 +939,28 @@ h1, h2, h3, h4 {
   border-color: var(--ink);
 }
 
-.delete-btn {
+.delete-btn,
+.edit-btn {
   background: none;
   border: none;
   color: var(--ink-mute);
   cursor: pointer;
   font-family: var(--font-mono);
   font-size: 0.75rem;
-  padding: 0.25rem 0.5rem;
+  padding: 0.25rem 0.4rem;
   transition: color 0.2s;
 }
 
 .delete-btn:hover {
   color: var(--red);
+}
+
+.edit-btn {
+  font-size: 0.85rem;
+}
+
+.edit-btn:hover {
+  color: var(--accent);
 }
 
 /* ==========================================================================
