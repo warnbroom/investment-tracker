@@ -113,22 +113,42 @@ async function gistApiRequest(path, options = {}) {
   return res.json();
 }
 
-/** Test token bằng cách gọi /user */
+/** Test token bằng cách gọi /user và /gists để verify quyền */
 async function testGistToken(token) {
-  const res = await fetch('https://api.github.com/user', {
+  // 1) Verify token hợp lệ qua /user
+  const userRes = await fetch('https://api.github.com/user', {
     headers: { 'Authorization': 'Bearer ' + token, 'Accept': 'application/vnd.github+json' },
   });
-  if (!res.ok) {
-    if (res.status === 401) throw new Error('Token không hợp lệ');
-    throw new Error('HTTP ' + res.status);
+  if (!userRes.ok) {
+    if (userRes.status === 401) throw new Error('Token không hợp lệ');
+    throw new Error('HTTP ' + userRes.status + ' khi xác thực token');
   }
-  const user = await res.json();
-  // Check scope
-  const scopes = (res.headers.get('X-OAuth-Scopes') || '').split(',').map(s => s.trim());
-  if (!scopes.includes('gist')) {
-    throw new Error('Token thiếu scope "gist". Tạo lại token với scope gist.');
+  const user = await userRes.json();
+
+  // 2) Verify quyền gist
+  // - Classic PAT: trả về header X-OAuth-Scopes
+  // - Fine-grained PAT: KHÔNG trả về header này, phải test bằng cách gọi /gists thật
+  const scopesHeader = userRes.headers.get('X-OAuth-Scopes');
+  if (scopesHeader !== null) {
+    // Classic PAT → check scope qua header
+    const scopes = scopesHeader.split(',').map(s => s.trim());
+    if (!scopes.includes('gist')) {
+      throw new Error('Token Classic thiếu scope "gist". Vào GitHub Settings → Tokens, edit token và tick "gist".');
+    }
+  } else {
+    // Fine-grained PAT → thử gọi GET /gists để verify quyền read
+    const gistsRes = await fetch('https://api.github.com/gists?per_page=1', {
+      headers: { 'Authorization': 'Bearer ' + token, 'Accept': 'application/vnd.github+json' },
+    });
+    if (gistsRes.status === 401 || gistsRes.status === 403 || gistsRes.status === 404) {
+      throw new Error('Token Fine-grained không có quyền Gists. Vào GitHub Settings → Fine-grained tokens, edit token và bật "Account permissions → Gists: Read and write".');
+    }
+    if (!gistsRes.ok) {
+      throw new Error('Không kiểm tra được quyền Gist (HTTP ' + gistsRes.status + ')');
+    }
   }
-  return { login: user.login, scopes };
+
+  return { login: user.login, type: scopesHeader !== null ? 'classic' : 'fine-grained' };
 }
 
 /** Tạo gist mới với data hiện tại */
@@ -351,10 +371,20 @@ async function setupGist(token) {
     priceCache: getLastPriceUpdate() || null,
     lastSync: new Date().toISOString(),
   };
-  const gist = await createGist(initialData);
+  let gist;
+  try {
+    gist = await createGist(initialData);
+  } catch (e) {
+    // Nếu fail (thường vì fine-grained PAT chỉ có read), xoá token đã lưu để giữ state sạch
+    setGistToken('');
+    if (e.message && e.message.includes('403')) {
+      throw new Error('Token có thể đọc Gist nhưng không có quyền tạo. Đảm bảo Fine-grained PAT có "Gists: Read and write" (không phải Read-only).');
+    }
+    throw e;
+  }
   setLastSyncTime(new Date().toISOString());
 
-  return { user: userInfo.login, gistId: gist.id, gistUrl: gist.html_url };
+  return { user: userInfo.login, gistId: gist.id, gistUrl: gist.html_url, tokenType: userInfo.type };
 }
 
 /**
