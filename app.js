@@ -4,9 +4,14 @@
 
 const STORAGE_KEY = 'portfolio_entries_v1';
 
-/* -------------------- Data layer -------------------- */
+/* -------------------- Data layer --------------------
+   Hỗ trợ tombstone: entry bị xoá có deleted=true,
+   vẫn lưu lại để sync với Gist (sẽ cleanup sau TTL).
+   - loadEntriesRaw / saveEntriesRaw: data thô, có tombstone
+   - loadEntries / saveEntries: data đã filter, chỉ entry active
+*/
 
-function loadEntries() {
+function loadEntriesRaw() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return [];
@@ -18,9 +23,13 @@ function loadEntries() {
   }
 }
 
-function saveEntries(entries) {
+function saveEntriesRaw(entries) {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
+    // Trigger gist sync nếu đã cấu hình
+    if (typeof schedulePushToGist === 'function') {
+      schedulePushToGist();
+    }
     return true;
   } catch (e) {
     console.error('Failed to save entries:', e);
@@ -28,18 +37,42 @@ function saveEntries(entries) {
   }
 }
 
+function loadEntries() {
+  // Trả về chỉ entries không bị xoá
+  return loadEntriesRaw().filter(e => !e.deleted);
+}
+
+function saveEntries(entries) {
+  // Khi save danh sách live, ghi đè raw nhưng giữ tombstones cũ
+  const oldRaw = loadEntriesRaw();
+  const tombstones = oldRaw.filter(e => e.deleted);
+  const liveIds = new Set(entries.map(e => e.id));
+  const keptTombstones = tombstones.filter(t => !liveIds.has(t.id));
+  return saveEntriesRaw([...entries, ...keptTombstones]);
+}
+
 function addEntry(entry) {
-  const entries = loadEntries();
+  const raw = loadEntriesRaw();
   entry.id = 'e_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
   entry.createdAt = new Date().toISOString();
-  entries.push(entry);
-  saveEntries(entries);
+  entry.updatedAt = entry.createdAt;
+  raw.push(entry);
+  saveEntriesRaw(raw);
   return entry;
 }
 
 function deleteEntry(id) {
-  const entries = loadEntries().filter(e => e.id !== id);
-  saveEntries(entries);
+  // Tombstone thay vì xoá hẳn — để sync với Gist biết entry này đã bị xoá
+  const raw = loadEntriesRaw();
+  const idx = raw.findIndex(e => e.id === id);
+  if (idx === -1) return;
+  raw[idx] = {
+    id: raw[idx].id,
+    createdAt: raw[idx].createdAt,
+    updatedAt: new Date().toISOString(),
+    deleted: true,
+  };
+  saveEntriesRaw(raw);
 }
 
 function getEntryById(id) {
@@ -51,19 +84,20 @@ function getEntryById(id) {
  * thay thế các field khác bằng dữ liệu mới.
  */
 function updateEntry(id, newData) {
-  const entries = loadEntries();
-  const idx = entries.findIndex(e => e.id === id);
+  const raw = loadEntriesRaw();
+  const idx = raw.findIndex(e => e.id === id);
   if (idx === -1) return null;
   // Merge: giữ id, createdAt; cho phép newData ghi đè mọi thứ khác
   const updated = {
-    ...entries[idx],
+    ...raw[idx],
     ...newData,
-    id: entries[idx].id,
-    createdAt: entries[idx].createdAt,
+    id: raw[idx].id,
+    createdAt: raw[idx].createdAt,
     updatedAt: new Date().toISOString(),
   };
-  entries[idx] = updated;
-  saveEntries(entries);
+  delete updated.deleted; // un-delete nếu đang là tombstone
+  raw[idx] = updated;
+  saveEntriesRaw(raw);
   return updated;
 }
 

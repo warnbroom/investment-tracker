@@ -4,7 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Nhập liệu — Sổ Cái</title>
-<link rel="stylesheet" href="styles.css?v=8" />
+<link rel="stylesheet" href="styles.css?v=9" />
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='40' fill='%23b8471f'/%3E%3C/svg%3E" />
 </head>
 <body>
@@ -253,8 +253,9 @@
   </div>
 </footer>
 
-<script src="app.js?v=8"></script>
-<script src="price-updater.js?v=8"></script>
+<script src="app.js?v=9"></script>
+<script src="price-updater.js?v=9"></script>
+<script src="gist-sync.js?v=1"></script>
 <script>
 (function () {
 
@@ -854,6 +855,13 @@
   });
 
   renderEntriesList();
+
+  // Re-render khi gist sync mang về data mới
+  window.addEventListener('gist-synced', () => {
+    renderEntriesList();
+    if (typeof refreshLastUpdateLabel === 'function') refreshLastUpdateLabel();
+    toast('Đã đồng bộ từ Gist');
+  });
 })();
 </script>
 
