@@ -4,7 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Nhập liệu — Sổ Cái</title>
-<link rel="stylesheet" href="styles.css?v=7" />
+<link rel="stylesheet" href="styles.css?v=8" />
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='40' fill='%23b8471f'/%3E%3C/svg%3E" />
 </head>
 <body>
@@ -253,8 +253,8 @@
   </div>
 </footer>
 
-<script src="app.js?v=7"></script>
-<script src="price-updater.js?v=7"></script>
+<script src="app.js?v=8"></script>
+<script src="price-updater.js?v=8"></script>
 <script>
 (function () {
 
@@ -450,6 +450,61 @@
   /* ---- List render & edit ---- */
   let currentFilter = 'all';
   let currentEditId = null;
+  let sortKey = 'createdAt'; // mặc định: mới nhất lên đầu
+  let sortDir = 'desc';      // 'asc' | 'desc'
+
+  /**
+   * Lấy giá trị của entry theo sort key, normalized cho so sánh.
+   * Trả về number cho cột số, string cho cột text, timestamp cho ngày.
+   */
+  function getSortValue(entry, key) {
+    const v = computeEntryValues(entry);
+
+    switch (key) {
+      case 'type':       return entry.type || '';
+      case 'name':       return (entry.name || '').toLowerCase();
+      case 'startDate':  return new Date(entry.startDate || entry.createdAt || 0).getTime();
+      case 'createdAt':  return new Date(entry.createdAt || 0).getTime();
+      case 'note':       return (entry.note || '').toLowerCase();
+      case 'principal':  return v.principal;
+      case 'currentValue': return v.currentValue;
+      case 'gain':       return v.gain;
+      case 'gainPct':    return v.gainPct;
+      case 'qty': {
+        if (entry.type === 'fund') return Number(entry.units) || 0;
+        if (entry.type === 'gold') return Number(entry.weight) || 0;
+        if (entry.type === 'usd')  return Number(entry.usdAmount) || 0;
+        return 0; // deposit không có "số lượng"
+      }
+      case 'buyUnitPrice': {
+        if (entry.type === 'fund') return Number(entry.buyNav) || 0;
+        if (entry.type === 'gold') return Number(entry.buyPrice) || 0;
+        if (entry.type === 'usd')  return Number(entry.buyRate) || 0;
+        if (entry.type === 'deposit') return Number(entry.rate) || 0;
+        return 0;
+      }
+      case 'currentUnitPrice': {
+        if (entry.type === 'fund') return Number(entry.currentNav) || Number(entry.buyNav) || 0;
+        if (entry.type === 'gold') return Number(entry.currentPrice) || Number(entry.buyPrice) || 0;
+        if (entry.type === 'usd')  return Number(entry.currentRate) || Number(entry.buyRate) || 0;
+        if (entry.type === 'deposit') return Number(entry.termMonths) || 0;
+        return 0;
+      }
+      default: return 0;
+    }
+  }
+
+  function compareEntries(a, b) {
+    const va = getSortValue(a, sortKey);
+    const vb = getSortValue(b, sortKey);
+    let cmp;
+    if (typeof va === 'number' && typeof vb === 'number') {
+      cmp = va - vb;
+    } else {
+      cmp = String(va).localeCompare(String(vb), 'vi');
+    }
+    return sortDir === 'asc' ? cmp : -cmp;
+  }
 
   const submitBtn = document.getElementById('btn-submit');
   const cancelEditBtn = document.getElementById('btn-cancel-edit');
@@ -544,8 +599,7 @@
   function renderEntriesList() {
     const entries = loadEntries();
     const filtered = currentFilter === 'all' ? entries : entries.filter(e => e.type === currentFilter);
-    const sorted = [...filtered].sort((a, b) =>
-      new Date(b.createdAt) - new Date(a.createdAt));
+    const sorted = [...filtered].sort(compareEntries);
 
     document.getElementById('entries-count').textContent =
       entries.length + ' mục · ' + filtered.length + ' hiển thị';
@@ -574,17 +628,17 @@
       <table class="ledger-table">
         <thead>
           <tr>
-            <th style="width: 90px;">Loại</th>
-            <th>Tên</th>
-            <th class="hide-mobile" style="width: 110px;">Ngày mua vào</th>
-            <th class="num-col hide-mobile" style="width: 130px;">Đơn giá thời điểm mua</th>
-            <th class="num-col hide-mobile" style="width: 100px;">Số lượng</th>
-            <th class="num-col" style="width: 130px;">Tổng vốn</th>
-            <th class="num-col hide-mobile" style="width: 130px;">Đơn giá hiện tại<br><span style="font-weight:400; color:var(--ink-mute); font-size:0.7rem;">(${todayStr})</span></th>
-            <th class="num-col" style="width: 110px;">Lợi nhuận</th>
-            <th class="num-col" style="width: 130px;">Tổng tài sản</th>
-            <th class="num-col" style="width: 90px;">Tỷ lệ ±</th>
-            <th class="hide-mobile" style="width: 130px;">Ghi chú</th>
+            <th style="width: 90px;" class="sortable" data-sort="type">Loại</th>
+            <th class="sortable" data-sort="name">Tên</th>
+            <th class="hide-mobile sortable" style="width: 110px;" data-sort="startDate">Ngày mua vào</th>
+            <th class="num-col hide-mobile sortable" style="width: 130px;" data-sort="buyUnitPrice">Đơn giá thời điểm mua</th>
+            <th class="num-col hide-mobile sortable" style="width: 100px;" data-sort="qty">Số lượng</th>
+            <th class="num-col sortable" style="width: 130px;" data-sort="principal">Tổng vốn</th>
+            <th class="num-col hide-mobile sortable" style="width: 130px;" data-sort="currentUnitPrice">Đơn giá hiện tại<br><span style="font-weight:400; color:var(--ink-mute); font-size:0.7rem;">(${todayStr})</span></th>
+            <th class="num-col sortable" style="width: 110px;" data-sort="gain">Lợi nhuận</th>
+            <th class="num-col sortable" style="width: 130px;" data-sort="currentValue">Tổng tài sản</th>
+            <th class="num-col sortable" style="width: 90px;" data-sort="gainPct">Tỷ lệ ±</th>
+            <th class="hide-mobile sortable" style="width: 130px;" data-sort="note">Ghi chú</th>
             <th style="width: 80px;"></th>
           </tr>
         </thead>
@@ -649,6 +703,30 @@
     });
     html += '</tbody></table>';
     wrap.innerHTML = html;
+
+    // Sort: hiển thị mũi tên trên header đang sort, bind click
+    wrap.querySelectorAll('th.sortable').forEach(th => {
+      const key = th.dataset.sort;
+      if (key === sortKey) {
+        const arrow = sortDir === 'asc' ? ' ▲' : ' ▼';
+        const arrowSpan = document.createElement('span');
+        arrowSpan.className = 'sort-arrow';
+        arrowSpan.textContent = arrow;
+        th.appendChild(arrowSpan);
+        th.classList.add('sort-active');
+      }
+      th.addEventListener('click', () => {
+        if (sortKey === key) {
+          sortDir = (sortDir === 'asc') ? 'desc' : 'asc';
+        } else {
+          sortKey = key;
+          // Cột số mặc định desc (lớn → bé), text mặc định asc
+          const numericKeys = ['principal','currentValue','gain','gainPct','qty','buyUnitPrice','currentUnitPrice','startDate'];
+          sortDir = numericKeys.includes(key) ? 'desc' : 'asc';
+        }
+        renderEntriesList();
+      });
+    });
 
     wrap.querySelectorAll('.delete-btn').forEach(btn => {
       btn.addEventListener('click', () => {

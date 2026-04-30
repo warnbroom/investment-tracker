@@ -570,6 +570,26 @@ h1, h2, h3, h4 {
   vertical-align: bottom;
 }
 
+.ledger-table th.sortable {
+  cursor: pointer;
+  user-select: none;
+  transition: color 0.15s;
+}
+
+.ledger-table th.sortable:hover {
+  color: var(--accent);
+}
+
+.ledger-table th.sort-active {
+  color: var(--ink);
+}
+
+.ledger-table th .sort-arrow {
+  color: var(--accent);
+  margin-left: 0.2rem;
+  font-size: 0.7rem;
+}
+
 .ledger-table th.num-col,
 .ledger-table td.num-col {
   text-align: right;
