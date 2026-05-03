@@ -138,11 +138,15 @@ function computeEntryValues(entry) {
     currentValue = principal + interest;
   }
   else if (type === 'fund') {
-    // Quỹ mở: principal = units * buyNav; currentValue = units * currentNav
+    // Quỹ mở:
+    // - principal = buyAmount nếu user đã nhập (chính xác đúng tiền bỏ ra)
+    //               ngược lại = units × buyNav
+    // - currentValue = units × currentNav
     const units = Number(entry.units) || 0;
     const buyNav = Number(entry.buyNav) || 0;
+    const buyAmount = Number(entry.buyAmount) || 0;
     const currentNav = Number(entry.currentNav) || buyNav;
-    principal = units * buyNav;
+    principal = buyAmount > 0 ? buyAmount : units * buyNav;
     currentValue = units * currentNav;
   }
   else if (type === 'gold') {

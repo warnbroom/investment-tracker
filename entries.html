@@ -4,7 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Nhập liệu — Sổ Cái</title>
-<link rel="stylesheet" href="styles.css?v=14" />
+<link rel="stylesheet" href="styles.css?v=15" />
 <!-- PWA & icons -->
 <link rel="manifest" href="manifest.webmanifest" />
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png" />
@@ -124,12 +124,20 @@
               <input type="text" id="f-fundCompany" name="fundCompany" placeholder="VinaCapital, Dragon Capital..." />
             </div>
             <div class="form-field fund-field" style="display:none;">
-              <label for="f-units">Số CCQ (chứng chỉ quỹ)</label>
-              <input type="number" id="f-units" name="units" min="0" step="0.01" placeholder="1250.75" />
+              <label for="f-buyAmount">Tổng tiền mua <span class="hint">đ</span></label>
+              <input type="number" id="f-buyAmount" name="buyAmount" min="0" step="0.01" placeholder="10000000" />
             </div>
             <div class="form-field fund-field" style="display:none;">
               <label for="f-buyNav">NAV lúc mua <span class="hint">đ/CCQ</span></label>
-              <input type="number" id="f-buyNav" name="buyNav" min="0" step="0.01" placeholder="25000" />
+              <input type="number" id="f-buyNav" name="buyNav" min="0" step="0.01" placeholder="25123.45" />
+            </div>
+            <div class="form-field fund-field" style="display:none;">
+              <label for="f-units">
+                <span>Số CCQ <span class="hint">tự tính</span></span>
+                <span id="units-auto-note" style="font-family: var(--font-mono); font-size: 0.7rem; color: var(--accent); display: none;">↻ tổng / NAV</span>
+              </label>
+              <input type="number" id="f-units" name="units" min="0" step="0.0001" placeholder="397.9560" />
+              <div class="hint" style="margin-top: 0.3rem; font-size: 0.72rem; color: var(--ink-mute);">Để trống: app tự tính từ tổng tiền &amp; NAV. Điền tay nếu sao kê có CCQ chính xác.</div>
             </div>
             <div class="form-field fund-field" style="display:none;">
               <label for="f-currentNav">
@@ -262,8 +270,8 @@
   </div>
 </footer>
 
-<script src="app.js?v=14"></script>
-<script src="price-updater.js?v=14"></script>
+<script src="app.js?v=15"></script>
+<script src="price-updater.js?v=15"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="supabase-config.js?v=1"></script>
 <script src="supabase-sync.js?v=4"></script>
@@ -320,6 +328,41 @@
   ['f-startDate-d','f-startDate-f','f-startDate-g','f-startDate-u'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.value = today;
+  });
+
+  /* ---- Auto-calc CCQ from buyAmount/buyNav ---- */
+  const buyAmountEl = document.getElementById('f-buyAmount');
+  const buyNavEl = document.getElementById('f-buyNav');
+  const unitsEl = document.getElementById('f-units');
+  const unitsAutoNote = document.getElementById('units-auto-note');
+  let unitsManuallyEdited = false;
+
+  function recalcUnits() {
+    if (unitsManuallyEdited) return;
+    const amount = parseFloat(buyAmountEl.value);
+    const nav = parseFloat(buyNavEl.value);
+    if (amount > 0 && nav > 0) {
+      const units = amount / nav;
+      unitsEl.value = units.toFixed(4);
+      unitsAutoNote.style.display = '';
+    } else {
+      unitsAutoNote.style.display = 'none';
+    }
+  }
+
+  buyAmountEl.addEventListener('input', recalcUnits);
+  buyNavEl.addEventListener('input', recalcUnits);
+
+  unitsEl.addEventListener('input', () => {
+    // Khi user gõ tay → đánh dấu là manual, không auto override nữa
+    if (unitsEl.value.trim() !== '') {
+      unitsManuallyEdited = true;
+      unitsAutoNote.style.display = 'none';
+    } else {
+      // Xoá trống → reset, cho auto-fill lại
+      unitsManuallyEdited = false;
+      recalcUnits();
+    }
   });
 
   /* ---- Mini fetch buttons (NAV & gold price & USD rate) ---- */
@@ -403,7 +446,7 @@
     // Collect relevant fields
     const fieldsByType = {
       deposit: ['name','bank','amount','rate','termMonths','startDate','interestType','note'],
-      fund:    ['name','fundCode','fundCompany','units','buyNav','currentNav','startDate','note'],
+      fund:    ['name','fundCode','fundCompany','buyAmount','units','buyNav','currentNav','startDate','note'],
       gold:    ['name','goldType','weight','buyPrice','currentPrice','startDate','store','note'],
       usd:     ['name','usdAmount','buyRate','currentRate','startDate','source','note'],
     };
@@ -427,9 +470,20 @@
       toast('Vui lòng nhập số tiền gửi');
       return;
     }
-    if (type === 'fund' && (!entry.units || !entry.buyNav)) {
-      toast('Vui lòng nhập số CCQ và NAV lúc mua');
-      return;
+    if (type === 'fund') {
+      if (!entry.buyNav) {
+        toast('Vui lòng nhập NAV lúc mua');
+        return;
+      }
+      // Phải có 1 trong 2: tổng tiền mua, hoặc số CCQ
+      if (!entry.buyAmount && !entry.units) {
+        toast('Vui lòng nhập tổng tiền mua hoặc số CCQ');
+        return;
+      }
+      // Nếu có buyAmount mà thiếu units → tự tính
+      if (entry.buyAmount && !entry.units) {
+        entry.units = Number(entry.buyAmount) / Number(entry.buyNav);
+      }
     }
     if (type === 'gold' && (!entry.weight || !entry.buyPrice)) {
       toast('Vui lòng nhập khối lượng và giá mua');
@@ -455,6 +509,8 @@
         const el = document.getElementById(id);
         if (el) el.value = today;
       });
+      unitsManuallyEdited = false;
+      if (unitsAutoNote) unitsAutoNote.style.display = 'none';
     }
     renderEntriesList();
   });
@@ -550,11 +606,15 @@
     } else if (e.type === 'fund') {
       setVal('fundCode', e.fundCode);
       setVal('fundCompany', e.fundCompany);
+      setVal('buyAmount', e.buyAmount);
       setVal('units', e.units);
       setVal('buyNav', e.buyNav);
       setVal('currentNav', e.currentNav);
       const d = document.getElementById('f-startDate-f');
       if (d) d.value = e.startDate || '';
+      // Khi load entry cũ: nếu có units thì coi như user "đã chốt", flag manual
+      // để không bị recalc ghi đè khi user chỉ sửa buyAmount/buyNav
+      unitsManuallyEdited = !!e.units;
     } else if (e.type === 'gold') {
       setVal('goldType', e.goldType);
       setVal('weight', e.weight);
@@ -592,6 +652,8 @@
       const el = document.getElementById(id);
       if (el) el.value = today;
     });
+    unitsManuallyEdited = false;
+    if (unitsAutoNote) unitsAutoNote.style.display = 'none';
   }
 
   cancelEditBtn.addEventListener('click', () => {
