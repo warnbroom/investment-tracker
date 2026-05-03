@@ -4,7 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Phân tích — Sổ Cái</title>
-<link rel="stylesheet" href="styles.css?v=13" />
+<link rel="stylesheet" href="styles.css?v=14" />
 <!-- PWA & icons -->
 <link rel="manifest" href="manifest.webmanifest" />
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png" />
@@ -130,16 +130,33 @@
 
       <!-- Top performers -->
       <div class="analytics-card">
-        <h3>Dẫn đầu <em>— tăng mạnh nhất</em></h3>
-        <div class="sub">Top 5 theo tỷ suất lợi nhuận</div>
+        <h3>Dẫn đầu <em>— hiệu suất theo năm</em></h3>
+        <div class="sub">Top 5 theo CAGR (lãi kép quy ra %/năm)</div>
         <ul class="breakdown-list" id="top-performers"></ul>
       </div>
 
       <!-- Weakest -->
       <div class="analytics-card">
-        <h3>Cần chú ý <em>— hiệu suất yếu</em></h3>
-        <div class="sub">Top 5 theo tỷ suất thấp / âm</div>
+        <h3>Cần chú ý <em>— hiệu suất theo năm</em></h3>
+        <div class="sub">Top 5 theo CAGR thấp / âm</div>
         <ul class="breakdown-list" id="weak-performers"></ul>
+      </div>
+
+      <!-- Benchmark -->
+      <div class="analytics-card full">
+        <h3>So với <em>benchmark</em></h3>
+        <div class="sub">
+          So sánh từng khoản với lãi suất tham chiếu (mặc định 5.5%/năm — lãi tiết kiệm 12 tháng VCB).
+          Mục nào CAGR &gt; benchmark = đáng giá rủi ro.
+        </div>
+        <div style="margin-top: 1rem; display:flex; gap:1rem; align-items:center; flex-wrap:wrap;">
+          <label for="benchmark-rate" style="font-family: var(--font-mono); font-size: 0.78rem; color: var(--ink-mute); letter-spacing: 0.06em; text-transform: uppercase;">Benchmark:</label>
+          <input type="number" id="benchmark-rate" min="0" max="100" step="0.1" value="5.5"
+            style="width: 90px; padding: 0.5rem 0.65rem; background: var(--paper-deep); border: 1px solid var(--rule-strong); font-family: var(--font-mono); font-size: 0.92rem; text-align: right;"/>
+          <span style="font-family: var(--font-mono); font-size: 0.78rem; color: var(--ink-mute);">%/năm</span>
+        </div>
+        <div id="benchmark-summary" style="margin-top: 1rem; padding: 1rem; background: var(--paper); border: 1px solid var(--rule); font-family: var(--font-mono); font-size: 0.85rem; line-height: 1.7;"></div>
+        <ul class="breakdown-list" id="benchmark-list" style="margin-top: 1rem;"></ul>
       </div>
 
       <!-- Supabase Auth -->
@@ -226,8 +243,8 @@
   </div>
 </footer>
 
-<script src="app.js?v=13"></script>
-<script src="price-updater.js?v=13"></script>
+<script src="app.js?v=14"></script>
+<script src="price-updater.js?v=14"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="supabase-config.js?v=1"></script>
 <script src="supabase-sync.js?v=4"></script>
@@ -355,34 +372,55 @@
     svg.appendChild(t3);
   }
 
-  /* ---- Top / weak performers ---- */
-  const withValues = entries.map(e => ({ ...e, ...computeEntryValues(e) }))
-    .filter(e => e.principal > 0);
+  /* ---- Top / weak performers theo CAGR (%/năm) ---- */
+  const withAnn = entries.map(e => {
+    const v = computeEntryValues(e);
+    const ann = computeAnnualized(e);
+    return { ...e, ...v, _ann: ann };
+  }).filter(e => e.principal > 0);
 
-  const top = [...withValues].sort((a,b) => b.gainPct - a.gainPct).slice(0, 5);
-  const weak = [...withValues].sort((a,b) => a.gainPct - b.gainPct).slice(0, 5);
+  // Chỉ xét các mục có annualized hợp lệ (loại "quá ngắn", "no_date"...)
+  const validAnn = withAnn.filter(e => e._ann.valid);
+
+  const top = [...validAnn].sort((a,b) => b._ann.cagr - a._ann.cagr).slice(0, 5);
+  const weak = [...validAnn].sort((a,b) => a._ann.cagr - b._ann.cagr).slice(0, 5);
+
+  function reasonLabel(reason) {
+    return ({
+      'too_short': 'quá ngắn (<30 ngày)',
+      'no_date': 'thiếu ngày bắt đầu',
+      'no_principal': 'không có vốn',
+      'no_rate': 'chưa nhập lãi suất',
+      'loss_too_big': 'lỗ lớn',
+    })[reason] || '';
+  }
 
   function renderPerformerList(el, list) {
     if (list.length === 0) {
-      el.innerHTML = '<li style="color:var(--ink-mute); font-style:italic;">Chưa có dữ liệu để xếp hạng.</li>';
+      el.innerHTML = '<li style="color:var(--ink-mute); font-style:italic;">Chưa có dữ liệu hợp lệ để xếp hạng (cần ≥30 ngày).</li>';
       return;
     }
     list.forEach(e => {
-      const gainClass = e.gain >= 0 ? 'delta-positive' : 'delta-negative';
-      const gainSign = e.gain >= 0 ? '+' : '';
-      const typeColor = colors[e.type].bg;
-      const widthPct = Math.min(100, Math.abs(e.gainPct) * 2);
+      const ann = e._ann;
+      const gainClass = ann.cagr >= 0 ? 'delta-positive' : 'delta-negative';
+      const gainSign = ann.cagr >= 0 ? '+' : '';
+      const widthPct = Math.min(100, Math.abs(ann.cagr) * 4);
+      const yearsStr = ann.years >= 1
+        ? ann.years.toFixed(1) + ' năm'
+        : Math.round(ann.years * 12) + ' tháng';
+      const tooltip = `CAGR (lãi kép): ${ann.cagr.toFixed(2)}%/năm\nSimple: ${ann.simple.toFixed(2)}%/năm\nThời gian: ${yearsStr}\nTổng lợi nhuận: ${e.gainPct.toFixed(2)}%`;
       const li = document.createElement('li');
       li.className = 'breakdown-item';
+      li.title = tooltip;
       li.innerHTML = `
         <div class="breakdown-name">${escapeHtml(e.name || typeLabel(e.type))}</div>
-        <div class="breakdown-value ${gainClass}">${gainSign}${formatPct(e.gainPct, false)}</div>
+        <div class="breakdown-value ${gainClass}">${gainSign}${ann.cagr.toFixed(2)}%/năm</div>
         <div class="breakdown-bar">
-          <div class="breakdown-bar-fill" style="width: ${widthPct}%; background: ${e.gain >= 0 ? 'var(--green)' : 'var(--red)'};"></div>
+          <div class="breakdown-bar-fill" style="width: ${widthPct}%; background: ${ann.cagr >= 0 ? 'var(--green)' : 'var(--red)'};"></div>
         </div>
         <div class="breakdown-sub">
-          <span><span class="type-tag ${e.type}" style="font-size:0.62rem; padding: 0.05rem 0.4rem;">${typeLabel(e.type)}</span></span>
-          <span>${formatMoney(e.currentValue)} đ · ${gainSign}${formatMoney(e.gain)}</span>
+          <span><span class="type-tag ${e.type}" style="font-size:0.62rem; padding: 0.05rem 0.4rem;">${typeLabel(e.type)}</span> · ${yearsStr}</span>
+          <span>Tổng: ${gainSign}${formatPct(e.gainPct, false)}</span>
         </div>`;
       el.appendChild(li);
     });
@@ -390,6 +428,90 @@
 
   renderPerformerList(document.getElementById('top-performers'), top);
   renderPerformerList(document.getElementById('weak-performers'), weak);
+
+  /* ---- Benchmark comparison ---- */
+  const benchmarkRateInput = document.getElementById('benchmark-rate');
+  const benchmarkSummary = document.getElementById('benchmark-summary');
+  const benchmarkList = document.getElementById('benchmark-list');
+  const BENCHMARK_KEY = 'portfolio_benchmark_rate_v1';
+
+  // Restore saved benchmark
+  try {
+    const saved = localStorage.getItem(BENCHMARK_KEY);
+    if (saved) benchmarkRateInput.value = saved;
+  } catch {}
+
+  function renderBenchmark() {
+    const rate = parseFloat(benchmarkRateInput.value) || 5.5;
+    try { localStorage.setItem(BENCHMARK_KEY, String(rate)); } catch {}
+
+    if (validAnn.length === 0) {
+      benchmarkSummary.innerHTML = '<span style="color:var(--ink-mute); font-style:italic;">Chưa có mục nào hợp lệ để so sánh.</span>';
+      benchmarkList.innerHTML = '';
+      return;
+    }
+
+    const above = validAnn.filter(e => e._ann.cagr > rate);
+    const below = validAnn.filter(e => e._ann.cagr <= rate);
+    const aboveValue = above.reduce((s, e) => s + e.currentValue, 0);
+    const belowValue = below.reduce((s, e) => s + e.currentValue, 0);
+    const totalValue = aboveValue + belowValue;
+    const abovePct = totalValue > 0 ? (aboveValue / totalValue * 100) : 0;
+
+    benchmarkSummary.innerHTML = `
+      <div style="display:flex; gap:2rem; flex-wrap:wrap;">
+        <div>
+          <div style="color:var(--ink-mute); font-size:0.72rem; letter-spacing:0.06em; text-transform:uppercase;">Vượt benchmark</div>
+          <div style="color:var(--green); font-size:1.2rem; font-weight:500; margin-top:0.25rem;">${above.length} / ${validAnn.length} mục</div>
+          <div style="color:var(--ink-mute); margin-top:0.25rem;">${formatMoney(aboveValue)} đ · ${abovePct.toFixed(1)}% danh mục</div>
+        </div>
+        <div>
+          <div style="color:var(--ink-mute); font-size:0.72rem; letter-spacing:0.06em; text-transform:uppercase;">Dưới benchmark</div>
+          <div style="color:var(--red); font-size:1.2rem; font-weight:500; margin-top:0.25rem;">${below.length} / ${validAnn.length} mục</div>
+          <div style="color:var(--ink-mute); margin-top:0.25rem;">${formatMoney(belowValue)} đ · ${(100 - abovePct).toFixed(1)}% danh mục</div>
+        </div>
+      </div>
+    `;
+
+    // Sort tất cả entries theo CAGR
+    const sorted = [...validAnn].sort((a, b) => b._ann.cagr - a._ann.cagr);
+    benchmarkList.innerHTML = '';
+    sorted.forEach(e => {
+      const ann = e._ann;
+      const isAbove = ann.cagr > rate;
+      const diff = ann.cagr - rate;
+      const diffSign = diff >= 0 ? '+' : '';
+      const diffClass = isAbove ? 'delta-positive' : 'delta-negative';
+      const widthPct = Math.min(100, Math.abs(ann.cagr) * 4);
+      const yearsStr = ann.years >= 1 ? ann.years.toFixed(1) + ' năm' : Math.round(ann.years * 12) + ' tháng';
+
+      const li = document.createElement('li');
+      li.className = 'breakdown-item';
+      li.innerHTML = `
+        <div class="breakdown-name">${escapeHtml(e.name || typeLabel(e.type))}</div>
+        <div class="breakdown-value ${diffClass}">${ann.cagr.toFixed(2)}%/năm <span style="color:var(--ink-mute); font-size:0.78rem; margin-left:0.5rem;">(${diffSign}${diff.toFixed(2)} so với BM)</span></div>
+        <div class="breakdown-bar" style="position:relative;">
+          <div class="breakdown-bar-fill" style="width: ${widthPct}%; background: ${isAbove ? 'var(--green)' : 'var(--red)'};"></div>
+          <div style="position:absolute; left:${Math.min(100, rate * 4)}%; top:-2px; bottom:-2px; width:1px; background:var(--ink-mute); opacity:0.7;" title="Benchmark"></div>
+        </div>
+        <div class="breakdown-sub">
+          <span><span class="type-tag ${e.type}" style="font-size:0.62rem; padding: 0.05rem 0.4rem;">${typeLabel(e.type)}</span> · ${yearsStr}</span>
+          <span>${formatMoney(e.currentValue)} đ</span>
+        </div>`;
+      benchmarkList.appendChild(li);
+    });
+
+    // Show "skipped" entries có annualized invalid (too_short, no_date)
+    const invalid = withAnn.filter(e => !e._ann.valid && e._ann.reason !== 'no_principal');
+    if (invalid.length > 0) {
+      const noteLi = document.createElement('li');
+      noteLi.style.cssText = 'color:var(--ink-mute); font-size:0.78rem; font-style:italic; padding-top:1rem; border-top:1px dashed var(--rule); margin-top:0.5rem;';
+      noteLi.textContent = `${invalid.length} mục không xếp hạng được: ${invalid.map(e => `${e.name || typeLabel(e.type)} (${reasonLabel(e._ann.reason)})`).join(', ')}`;
+      benchmarkList.appendChild(noteLi);
+    }
+  }
+  renderBenchmark();
+  benchmarkRateInput.addEventListener('input', renderBenchmark);
 
   /* ---- Proxy config ---- */
   console.log('[Sổ Cái] Setting up proxy config...');

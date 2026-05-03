@@ -179,6 +179,73 @@ function monthsBetween(d1, d2) {
   return years * 12 + months + days / 30;
 }
 
+/**
+ * Tính lợi suất theo năm (annualized return) cho 1 entry.
+ *
+ * Trả về:
+ *   {
+ *     cagr:     number (%/năm theo lãi kép, chuẩn quốc tế)
+ *     simple:   number (%/năm tuyến tính = gainPct/years)
+ *     years:    number (thời gian nắm giữ tính bằng năm)
+ *     valid:    boolean (true nếu kết quả đáng tin)
+ *     reason:   string (lý do invalid: 'too_short' | 'no_principal' | 'no_date' | 'loss_too_big')
+ *   }
+ *
+ * Tiền gửi: trả thẳng `rate` đã nhập.
+ * Loại khác: tính từ thời gian giữ.
+ *
+ * Quy tắc validity:
+ *   - years < 30 ngày → too_short (annualize sẽ nhiễu vô cùng lớn)
+ *   - principal <= 0 → no_principal
+ *   - không có startDate → no_date
+ *   - currentValue âm (lỗ > 100%) → loss_too_big (CAGR bị NaN)
+ */
+function computeAnnualized(entry) {
+  const v = computeEntryValues(entry);
+
+  // Tiền gửi: dùng rate đã nhập (đã là %/năm)
+  if (entry.type === 'deposit') {
+    const rate = Number(entry.rate) || 0;
+    return {
+      cagr: rate,
+      simple: rate,
+      years: 0, // không cần thời gian, đã có rate
+      valid: rate > 0,
+      reason: rate > 0 ? '' : 'no_rate',
+    };
+  }
+
+  // Quỹ / Vàng / USD: tính từ thời gian
+  if (!entry.startDate) {
+    return { cagr: 0, simple: 0, years: 0, valid: false, reason: 'no_date' };
+  }
+  const start = new Date(entry.startDate);
+  const now = new Date();
+  if (isNaN(start)) {
+    return { cagr: 0, simple: 0, years: 0, valid: false, reason: 'no_date' };
+  }
+  const years = (now - start) / (365.25 * 24 * 3600 * 1000);
+
+  if (years < 30 / 365.25) {
+    return { cagr: 0, simple: 0, years, valid: false, reason: 'too_short' };
+  }
+  if (v.principal <= 0) {
+    return { cagr: 0, simple: 0, years, valid: false, reason: 'no_principal' };
+  }
+  if (v.currentValue <= 0) {
+    // Lỗ > 100% → CAGR không tính được. Trả simple thôi.
+    const simple = (v.gainPct / years);
+    return { cagr: simple, simple, years, valid: false, reason: 'loss_too_big' };
+  }
+
+  // CAGR = (currentValue / principal)^(1/years) - 1
+  const cagr = (Math.pow(v.currentValue / v.principal, 1 / years) - 1) * 100;
+  // Simple = gainPct / years
+  const simple = v.gainPct / years;
+
+  return { cagr, simple, years, valid: true, reason: '' };
+}
+
 // Portfolio aggregates
 function computePortfolio(entries) {
   const byType = { deposit: [], fund: [], gold: [], usd: [] };
