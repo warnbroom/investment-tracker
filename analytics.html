@@ -4,7 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Phân tích — Sổ Cái</title>
-<link rel="stylesheet" href="styles.css?v=10" />
+<link rel="stylesheet" href="styles.css?v=11" />
 <!-- PWA & icons -->
 <link rel="manifest" href="manifest.webmanifest" />
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png" />
@@ -142,45 +142,59 @@
         <ul class="breakdown-list" id="weak-performers"></ul>
       </div>
 
-      <!-- Gist sync -->
+      <!-- Supabase Auth -->
       <div class="analytics-card full">
-        <h3>Đồng bộ <em>GitHub Gist</em></h3>
+        <h3>Tài khoản <em>đồng bộ đa thiết bị</em></h3>
         <div class="sub">
-          Lưu dữ liệu lên GitHub Gist riêng tư để dùng đa thiết bị. Last-write-wins per entry.
-          <a href="https://github.com/settings/tokens?type=beta" target="_blank" rel="noopener" style="color:var(--accent); text-decoration:underline;">Tạo token</a>
-          (Fine-grained PAT, chọn quyền <code style="font-family:var(--font-mono);font-size:0.85em;background:var(--paper-deep);padding:0 .3rem;">Gists: Read and write</code>)
-          hoặc dùng
-          <a href="https://github.com/settings/tokens/new?scopes=gist&description=So%20Cai%20Portfolio" target="_blank" rel="noopener" style="color:var(--accent); text-decoration:underline;">Classic PAT scope <code style="font-family:var(--font-mono);font-size:0.85em;background:var(--paper-deep);padding:0 .3rem;">gist</code></a>.
+          Đăng nhập để dữ liệu sync realtime giữa các máy. Dữ liệu lưu trên Supabase, mã hoá end-to-end ở tầng vận chuyển.
         </div>
 
-        <div id="gist-not-connected" style="margin-top: 1.25rem; padding: 1.25rem; background: var(--paper); border: 1px solid var(--rule-strong); border-left: 3px solid var(--accent); display:none;">
-          <div style="display:flex; gap:0.5rem; flex-wrap:wrap; align-items:center;">
-            <input type="password" id="gist-token-input" placeholder="ghp_xxxxxxxx hoặc github_pat_xxxx"
-              style="flex:1; min-width: 280px; padding: 0.65rem 0.85rem; background: var(--paper-deep); border: 1px solid var(--rule-strong); font-family: var(--font-mono); font-size: 0.82rem; color: var(--ink);"/>
-            <button class="btn btn-primary" id="btn-gist-setup" type="button">Kết nối &amp; tạo Gist</button>
+        <!-- Khi chưa cấu hình Supabase -->
+        <div id="supabase-not-configured" style="margin-top: 1.25rem; padding: 1.25rem; background: var(--paper); border: 1px solid var(--rule-strong); border-left: 3px solid #c9974a; display:none;">
+          <div style="font-size: 0.85rem; line-height: 1.6;">
+            <strong>Chưa cấu hình Supabase.</strong> Vào file <code style="font-family:var(--font-mono);font-size:0.85em;background:var(--paper-deep);padding:0 .3rem;">supabase-config.js</code> và điền <code style="font-family:var(--font-mono);font-size:0.85em;background:var(--paper-deep);padding:0 .3rem;">SUPABASE_URL</code> + <code style="font-family:var(--font-mono);font-size:0.85em;background:var(--paper-deep);padding:0 .3rem;">SUPABASE_ANON_KEY</code> từ <a href="https://app.supabase.com" target="_blank" rel="noopener" style="color:var(--accent); text-decoration:underline;">app.supabase.com</a> → Settings → API.
           </div>
-          <details style="margin-top: 0.75rem;">
-            <summary style="cursor:pointer; color:var(--ink-mute); font-size:0.82rem;">Đã có gist sẵn? Liên kết bằng Gist ID</summary>
-            <div style="margin-top: 0.5rem; display:flex; gap:0.5rem; flex-wrap:wrap;">
-              <input type="text" id="gist-id-input" placeholder="Gist ID (chuỗi 32 ký tự)"
-                style="flex:1; min-width: 280px; padding: 0.65rem 0.85rem; background: var(--paper-deep); border: 1px solid var(--rule-strong); font-family: var(--font-mono); font-size: 0.82rem; color: var(--ink);"/>
-              <button class="btn" id="btn-gist-link" type="button">Liên kết</button>
-            </div>
-          </details>
-          <div id="gist-setup-result" style="margin-top: 0.75rem; font-family: var(--font-mono); font-size: 0.78rem; line-height: 1.5; display:none;"></div>
         </div>
 
-        <div id="gist-connected" style="margin-top: 1.25rem; padding: 1.25rem; background: var(--paper); border: 1px solid var(--rule-strong); border-left: 3px solid var(--green); display:none;">
+        <!-- Khi đã cấu hình nhưng chưa đăng nhập -->
+        <div id="supabase-logged-out" style="margin-top: 1.25rem; padding: 1.25rem; background: var(--paper); border: 1px solid var(--rule-strong); border-left: 3px solid var(--accent); display:none;">
+          <div id="auth-mode-tabs" style="display:flex; gap:0; margin-bottom: 1rem; border-bottom: 1px solid var(--rule);">
+            <button class="auth-tab active" data-mode="signin" type="button" style="padding: 0.5rem 1rem; border: none; background: none; cursor: pointer; font-family: var(--font-mono); font-size: 0.78rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink); border-bottom: 2px solid var(--accent); margin-bottom: -1px;">Đăng nhập</button>
+            <button class="auth-tab" data-mode="signup" type="button" style="padding: 0.5rem 1rem; border: none; background: none; cursor: pointer; font-family: var(--font-mono); font-size: 0.78rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-mute); border-bottom: 2px solid transparent; margin-bottom: -1px;">Đăng ký</button>
+            <button class="auth-tab" data-mode="reset" type="button" style="padding: 0.5rem 1rem; border: none; background: none; cursor: pointer; font-family: var(--font-mono); font-size: 0.78rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-mute); border-bottom: 2px solid transparent; margin-bottom: -1px;">Quên mật khẩu</button>
+          </div>
+
+          <div style="display:flex; gap:0.5rem; flex-direction: column; max-width: 480px;">
+            <input type="email" id="auth-email" placeholder="email@domain.com" autocomplete="email"
+              style="padding: 0.65rem 0.85rem; background: var(--paper-deep); border: 1px solid var(--rule-strong); font-family: var(--font-mono); font-size: 0.85rem; color: var(--ink);"/>
+            <input type="password" id="auth-password" placeholder="Mật khẩu (≥6 ký tự)" autocomplete="current-password"
+              style="padding: 0.65rem 0.85rem; background: var(--paper-deep); border: 1px solid var(--rule-strong); font-family: var(--font-mono); font-size: 0.85rem; color: var(--ink);"/>
+            <button class="btn btn-primary" id="btn-auth-submit" type="button" style="margin-top: 0.5rem;">Đăng nhập</button>
+          </div>
+          <div id="auth-result" style="margin-top: 0.75rem; font-family: var(--font-mono); font-size: 0.78rem; line-height: 1.5; display:none;"></div>
+        </div>
+
+        <!-- Khi đã đăng nhập -->
+        <div id="supabase-logged-in" style="margin-top: 1.25rem; padding: 1.25rem; background: var(--paper); border: 1px solid var(--rule-strong); border-left: 3px solid var(--green); display:none;">
           <div style="display:flex; gap:1rem; align-items:center; flex-wrap:wrap;">
             <div style="flex:1; min-width:240px;">
-              <div style="font-family: var(--font-mono); font-size: 0.72rem; color: var(--ink-mute); letter-spacing: 0.06em; text-transform: uppercase;">Đã kết nối</div>
-              <div id="gist-info" style="margin-top: 0.25rem; font-family: var(--font-mono); font-size: 0.85rem;"></div>
-              <div id="gist-status" style="margin-top: 0.5rem; font-family: var(--font-mono); font-size: 0.78rem; color: var(--ink-mute);">—</div>
+              <div style="font-family: var(--font-mono); font-size: 0.72rem; color: var(--ink-mute); letter-spacing: 0.06em; text-transform: uppercase;">Đã đăng nhập</div>
+              <div id="user-info" style="margin-top: 0.25rem; font-family: var(--font-mono); font-size: 0.92rem; font-weight: 500;"></div>
+              <div id="sync-status" style="margin-top: 0.5rem; font-family: var(--font-mono); font-size: 0.78rem; color: var(--ink-mute);">Realtime đang lắng nghe…</div>
             </div>
             <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
-              <button class="btn" id="btn-gist-pull" type="button">↓ Tải về</button>
-              <button class="btn" id="btn-gist-push" type="button">↑ Đẩy lên</button>
-              <button class="btn btn-ghost" id="btn-gist-disconnect" type="button">Ngắt kết nối</button>
+              <button class="btn" id="btn-sync-pull" type="button">↓ Tải lại</button>
+              <button class="btn btn-ghost" id="btn-signout" type="button">Đăng xuất</button>
+            </div>
+          </div>
+          <div id="migrate-prompt" style="margin-top: 1rem; padding: 1rem; background: var(--paper-deep); border: 1px dashed var(--accent); display:none;">
+            <div style="font-size: 0.85rem; line-height: 1.5;">
+              <strong>Phát hiện <span id="migrate-count">0</span> mục trong máy này chưa có trên cloud.</strong>
+              <div style="margin-top: 0.5rem; color: var(--ink-mute);">Đẩy lên cloud để sync với các máy khác?</div>
+              <div style="margin-top: 0.75rem; display:flex; gap:0.5rem;">
+                <button class="btn btn-primary" id="btn-migrate-yes" type="button">Có, đẩy lên</button>
+                <button class="btn btn-ghost" id="btn-migrate-no" type="button">Không, để sau</button>
+              </div>
             </div>
           </div>
         </div>
@@ -212,9 +226,11 @@
   </div>
 </footer>
 
-<script src="app.js?v=10"></script>
-<script src="price-updater.js?v=10"></script>
-<script src="gist-sync.js?v=2"></script>
+<script src="app.js?v=11"></script>
+<script src="price-updater.js?v=11"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase-config.js?v=1"></script>
+<script src="supabase-sync.js?v=1"></script>
 <script>
 (function () {
   const entries = loadEntries();
@@ -541,122 +557,184 @@
   }
 
   /* ============================================================
-     GIST SYNC UI
+     SUPABASE AUTH UI
      ============================================================ */
-  const gistNotConnected = document.getElementById('gist-not-connected');
-  const gistConnected = document.getElementById('gist-connected');
-  const gistInfo = document.getElementById('gist-info');
-  const gistStatus = document.getElementById('gist-status');
-  const gistTokenInput = document.getElementById('gist-token-input');
-  const gistIdInput = document.getElementById('gist-id-input');
-  const gistSetupResult = document.getElementById('gist-setup-result');
+  const elNotConfigured = document.getElementById('supabase-not-configured');
+  const elLoggedOut = document.getElementById('supabase-logged-out');
+  const elLoggedIn = document.getElementById('supabase-logged-in');
+  const elUserInfo = document.getElementById('user-info');
+  const elSyncStatus = document.getElementById('sync-status');
+  const elAuthEmail = document.getElementById('auth-email');
+  const elAuthPassword = document.getElementById('auth-password');
+  const elAuthSubmit = document.getElementById('btn-auth-submit');
+  const elAuthResult = document.getElementById('auth-result');
+  const elMigratePrompt = document.getElementById('migrate-prompt');
+  const elMigrateCount = document.getElementById('migrate-count');
 
-  function refreshGistUI() {
-    if (hasGistConfig()) {
-      gistNotConnected.style.display = 'none';
-      gistConnected.style.display = '';
-      const id = getGistId();
-      const last = getLastSyncTime();
-      gistInfo.innerHTML = `Gist <a href="https://gist.github.com/${id}" target="_blank" style="color:var(--accent);">${id.slice(0, 12)}…</a>`;
-      if (last) {
-        const d = new Date(last);
-        gistStatus.textContent = 'Lần đồng bộ cuối: ' + d.toLocaleString('vi-VN', {
-          day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit',
-        });
-      }
+  let authMode = 'signin'; // 'signin' | 'signup' | 'reset'
+
+  function refreshAuthUI() {
+    if (typeof SUPABASE_ENABLED === 'undefined' || !SUPABASE_ENABLED) {
+      elNotConfigured.style.display = '';
+      elLoggedOut.style.display = 'none';
+      elLoggedIn.style.display = 'none';
+      return;
+    }
+    if (typeof isLoggedIn === 'function' && isLoggedIn()) {
+      elNotConfigured.style.display = 'none';
+      elLoggedOut.style.display = 'none';
+      elLoggedIn.style.display = '';
+      const u = getCurrentUser();
+      elUserInfo.textContent = u.email;
     } else {
-      gistNotConnected.style.display = '';
-      gistConnected.style.display = 'none';
+      elNotConfigured.style.display = 'none';
+      elLoggedOut.style.display = '';
+      elLoggedIn.style.display = 'none';
     }
   }
-  refreshGistUI();
+  refreshAuthUI();
 
-  function showGistResult(msg, kind = 'info') {
+  function showAuthResult(msg, kind) {
     const colors = { info: 'var(--ink-mute)', ok: 'var(--green)', error: 'var(--red)' };
-    gistSetupResult.style.display = 'block';
-    gistSetupResult.style.color = colors[kind] || 'var(--ink)';
-    gistSetupResult.textContent = msg;
+    elAuthResult.style.display = 'block';
+    elAuthResult.style.color = colors[kind] || 'var(--ink)';
+    elAuthResult.textContent = msg;
   }
 
-  // Listen sync events
-  onSyncStatus((status, detail) => {
-    const colors = { syncing: 'var(--ink-mute)', synced: 'var(--green)', error: 'var(--red)' };
-    const icons = { syncing: '⏳', synced: '✓', error: '✗' };
-    const time = new Date().toLocaleTimeString('vi-VN', { hour12: false });
-    gistStatus.style.color = colors[status] || 'var(--ink-mute)';
-    gistStatus.textContent = `${icons[status] || '·'} ${detail || status} · ${time}`;
-    if (status === 'synced') {
-      // Refresh "lần cuối" text sau 2s
-      setTimeout(refreshGistUI, 2000);
+  // Tab switcher
+  document.querySelectorAll('.auth-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      authMode = tab.dataset.mode;
+      document.querySelectorAll('.auth-tab').forEach(t => {
+        t.classList.toggle('active', t === tab);
+        t.style.color = (t === tab) ? 'var(--ink)' : 'var(--ink-mute)';
+        t.style.borderBottomColor = (t === tab) ? 'var(--accent)' : 'transparent';
+      });
+      const labels = { signin: 'Đăng nhập', signup: 'Đăng ký', reset: 'Gửi link đặt lại' };
+      elAuthSubmit.textContent = labels[authMode];
+      elAuthPassword.style.display = (authMode === 'reset') ? 'none' : '';
+      elAuthResult.style.display = 'none';
+    });
+  });
+
+  // Submit handler
+  elAuthSubmit.addEventListener('click', async () => {
+    const email = elAuthEmail.value.trim();
+    const password = elAuthPassword.value;
+    if (!email) { showAuthResult('Cần nhập email', 'error'); return; }
+    if (authMode !== 'reset' && !password) { showAuthResult('Cần nhập mật khẩu', 'error'); return; }
+    if (authMode === 'signup' && password.length < 6) { showAuthResult('Mật khẩu tối thiểu 6 ký tự', 'error'); return; }
+
+    elAuthSubmit.disabled = true;
+    const origText = elAuthSubmit.textContent;
+    elAuthSubmit.textContent = 'Đang xử lý…';
+
+    try {
+      if (authMode === 'signin') {
+        await signIn(email, password);
+        showAuthResult('Đăng nhập thành công!', 'ok');
+      } else if (authMode === 'signup') {
+        await signUp(email, password);
+        showAuthResult('Đăng ký thành công!', 'ok');
+      } else if (authMode === 'reset') {
+        await resetPassword(email);
+        showAuthResult('Đã gửi link đặt lại mật khẩu (nếu email có trong hệ thống). Kiểm tra hộp thư.', 'ok');
+      }
+    } catch (e) {
+      showAuthResult('Lỗi: ' + e.message, 'error');
+    } finally {
+      elAuthSubmit.disabled = false;
+      elAuthSubmit.textContent = origText;
     }
   });
 
-  document.getElementById('btn-gist-setup').addEventListener('click', async () => {
-    const token = gistTokenInput.value.trim();
-    if (!token) { showGistResult('Cần nhập token', 'error'); return; }
-    const btn = document.getElementById('btn-gist-setup');
-    btn.disabled = true;
-    btn.textContent = 'Đang xử lý…';
-    showGistResult('Kiểm tra token + tạo gist mới…', 'info');
+  // Auth state listener
+  if (typeof onAuthStateChange === 'function') {
+    onAuthStateChange(async (event, session) => {
+      refreshAuthUI();
+      if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
+        if (session) {
+          // Pull entries từ cloud
+          await pullEntries();
+          // Check migrate
+          await checkMigrate();
+        }
+      }
+    });
+  }
+
+  // Sync status listener
+  if (typeof onSyncStatus === 'function') {
+    onSyncStatus((status, detail) => {
+      const colors = { syncing: 'var(--ink-mute)', synced: 'var(--green)', error: 'var(--red)' };
+      const icons = { syncing: '⏳', synced: '✓', error: '✗' };
+      const time = new Date().toLocaleTimeString('vi-VN', { hour12: false });
+      elSyncStatus.style.color = colors[status] || 'var(--ink-mute)';
+      elSyncStatus.textContent = `${icons[status] || '·'} ${detail || status} · ${time}`;
+    });
+  }
+
+  async function checkMigrate() {
+    if (!isLoggedIn()) return;
+    // Check cloud entries count
     try {
-      const result = await setupGist(token);
-      showGistResult(`✓ Đã kết nối với @${result.user} (${result.tokenType} PAT), gist tạo thành công`, 'ok');
-      gistTokenInput.value = '';
-      refreshGistUI();
-      toast('Đã kết nối Gist');
+      const { count } = await supabase
+        .from('entries')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', getCurrentUser().id);
+
+      const localCount = loadEntriesRaw().length;
+      // Nếu cloud trống nhưng local có data → suggest migrate
+      if ((count || 0) === 0 && localCount > 0) {
+        elMigratePrompt.style.display = '';
+        elMigrateCount.textContent = localCount;
+      } else {
+        elMigratePrompt.style.display = 'none';
+      }
     } catch (e) {
-      showGistResult('Lỗi: ' + e.message, 'error');
+      console.error('checkMigrate failed:', e);
+    }
+  }
+
+  document.getElementById('btn-migrate-yes').addEventListener('click', async () => {
+    const btn = document.getElementById('btn-migrate-yes');
+    btn.disabled = true;
+    btn.textContent = 'Đang đẩy…';
+    try {
+      const r = await migrateLocalToCloud();
+      if (r.success) {
+        toast(`Đã đẩy ${r.count} mục lên cloud`);
+        elMigratePrompt.style.display = 'none';
+      } else {
+        toast('Lỗi: ' + (r.error || r.reason));
+      }
+    } catch (e) {
+      toast('Lỗi: ' + e.message);
     } finally {
       btn.disabled = false;
-      btn.textContent = 'Kết nối & tạo Gist';
+      btn.textContent = 'Có, đẩy lên';
     }
   });
 
-  document.getElementById('btn-gist-link').addEventListener('click', async () => {
-    const token = gistTokenInput.value.trim();
-    const gistId = gistIdInput.value.trim();
-    if (!token || !gistId) { showGistResult('Cần cả token và Gist ID', 'error'); return; }
-    const btn = document.getElementById('btn-gist-link');
-    btn.disabled = true;
-    btn.textContent = 'Đang xử lý…';
-    showGistResult('Liên kết với gist đã có…', 'info');
-    try {
-      const data = await linkExistingGist(token, gistId);
-      const remoteCount = (data.entries || []).length;
-      showGistResult(`✓ Liên kết thành công. Gist có ${remoteCount} mục. Bấm "↓ Tải về" để đồng bộ.`, 'ok');
-      gistTokenInput.value = '';
-      gistIdInput.value = '';
-      refreshGistUI();
-      toast('Đã liên kết Gist');
-    } catch (e) {
-      showGistResult('Lỗi: ' + e.message, 'error');
-    } finally {
-      btn.disabled = false;
-      btn.textContent = 'Liên kết';
-    }
+  document.getElementById('btn-migrate-no').addEventListener('click', () => {
+    elMigratePrompt.style.display = 'none';
   });
 
-  document.getElementById('btn-gist-pull').addEventListener('click', async () => {
-    if (!confirm('Tải dữ liệu từ Gist về và merge với máy này. Tiếp tục?')) return;
-    const r = await syncFromGist();
+  document.getElementById('btn-sync-pull').addEventListener('click', async () => {
+    const r = await pullEntries();
     if (r.success) {
-      toast(r.changed ? 'Đã merge xong, có thay đổi' : 'Đã đồng bộ, không có thay đổi mới');
-      if (r.changed) setTimeout(() => location.reload(), 1500);
+      toast(`Đã tải ${r.count} mục từ cloud`);
+      setTimeout(() => location.reload(), 800);
     } else {
       toast('Lỗi: ' + (r.error || r.reason));
     }
   });
 
-  document.getElementById('btn-gist-push').addEventListener('click', async () => {
-    await pushToGistNow();
-    toast('Đã push lên Gist');
-  });
-
-  document.getElementById('btn-gist-disconnect').addEventListener('click', () => {
-    if (!confirm('Ngắt kết nối Gist? Token sẽ bị xoá khỏi máy này. Gist trên GitHub vẫn còn.')) return;
-    disconnectGist();
-    refreshGistUI();
-    toast('Đã ngắt kết nối');
+  document.getElementById('btn-signout').addEventListener('click', async () => {
+    if (!confirm('Đăng xuất? Dữ liệu local vẫn còn nhưng sẽ không sync nữa.')) return;
+    await signOut();
+    toast('Đã đăng xuất');
+    refreshAuthUI();
   });
 
 })();

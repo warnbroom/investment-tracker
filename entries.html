@@ -4,7 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Nhập liệu — Sổ Cái</title>
-<link rel="stylesheet" href="styles.css?v=10" />
+<link rel="stylesheet" href="styles.css?v=11" />
 <!-- PWA & icons -->
 <link rel="manifest" href="manifest.webmanifest" />
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png" />
@@ -262,9 +262,11 @@
   </div>
 </footer>
 
-<script src="app.js?v=10"></script>
-<script src="price-updater.js?v=10"></script>
-<script src="gist-sync.js?v=2"></script>
+<script src="app.js?v=11"></script>
+<script src="price-updater.js?v=11"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase-config.js?v=1"></script>
+<script src="supabase-sync.js?v=1"></script>
 <script>
 (function () {
 
@@ -865,12 +867,23 @@
 
   renderEntriesList();
 
-  // Re-render khi gist sync mang về data mới
-  window.addEventListener('gist-synced', () => {
+  // Re-render khi Supabase realtime mang về data mới
+  window.addEventListener('supabase-changed', () => {
     renderEntriesList();
     if (typeof refreshLastUpdateLabel === 'function') refreshLastUpdateLabel();
-    toast('Đã đồng bộ từ Gist');
   });
+
+  // Re-render khi mới login (pull về xong)
+  if (typeof onAuthStateChange === 'function') {
+    onAuthStateChange(async (event) => {
+      if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
+        if (typeof pullEntries === 'function' && typeof isLoggedIn === 'function' && isLoggedIn()) {
+          await pullEntries();
+          renderEntriesList();
+        }
+      }
+    });
+  }
 })();
 </script>
 

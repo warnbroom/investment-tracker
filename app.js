@@ -23,12 +23,15 @@ function loadEntriesRaw() {
   }
 }
 
-function saveEntriesRaw(entries) {
+function saveEntriesRaw(entries, opts = {}) {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
-    // Trigger gist sync nếu đã cấu hình
-    if (typeof schedulePushToGist === 'function') {
-      schedulePushToGist();
+    // Trigger Supabase sync nếu đã đăng nhập (trừ khi skipPush)
+    if (!opts.skipPush && typeof isLoggedIn === 'function' && isLoggedIn() && typeof pushEntry === 'function') {
+      // Push từng entry — Supabase đã có upsert nên idempotent
+      // Note: chỉ push entry nào vừa được thay đổi, nhưng để đơn giản
+      // ta push hết. Có thể tối ưu sau nếu chậm.
+      // Thực ra để hiệu quả, các caller (addEntry, updateEntry, deleteEntry) sẽ tự gọi pushEntry
     }
     return true;
   } catch (e) {
@@ -58,21 +61,30 @@ function addEntry(entry) {
   entry.updatedAt = entry.createdAt;
   raw.push(entry);
   saveEntriesRaw(raw);
+  // Push to cloud
+  if (typeof pushEntry === 'function' && typeof isLoggedIn === 'function' && isLoggedIn()) {
+    pushEntry(entry).catch(e => console.error('Push add failed:', e));
+  }
   return entry;
 }
 
 function deleteEntry(id) {
-  // Tombstone thay vì xoá hẳn — để sync với Gist biết entry này đã bị xoá
+  // Tombstone thay vì xoá hẳn — để sync biết entry này đã bị xoá
   const raw = loadEntriesRaw();
   const idx = raw.findIndex(e => e.id === id);
   if (idx === -1) return;
   raw[idx] = {
     id: raw[idx].id,
+    type: raw[idx].type, // giữ type vì DB column NOT NULL
     createdAt: raw[idx].createdAt,
     updatedAt: new Date().toISOString(),
     deleted: true,
   };
   saveEntriesRaw(raw);
+  // Push tombstone
+  if (typeof pushEntry === 'function' && typeof isLoggedIn === 'function' && isLoggedIn()) {
+    pushEntry(raw[idx]).catch(e => console.error('Push delete failed:', e));
+  }
 }
 
 function getEntryById(id) {
@@ -98,6 +110,10 @@ function updateEntry(id, newData) {
   delete updated.deleted; // un-delete nếu đang là tombstone
   raw[idx] = updated;
   saveEntriesRaw(raw);
+  // Push to cloud
+  if (typeof pushEntry === 'function' && typeof isLoggedIn === 'function' && isLoggedIn()) {
+    pushEntry(updated).catch(e => console.error('Push update failed:', e));
+  }
   return updated;
 }
 
