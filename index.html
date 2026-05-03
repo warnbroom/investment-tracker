@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Sổ Cái — Danh mục Đầu tư</title>
 <meta name="description" content="Quản lý và theo dõi danh mục đầu tư cá nhân: tiền gửi, quỹ mở, vàng." />
-<link rel="stylesheet" href="styles.css?v=11" />
+<link rel="stylesheet" href="styles.css?v=12" />
 <!-- PWA & icons -->
 <link rel="manifest" href="manifest.webmanifest" />
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png" />
@@ -201,8 +201,8 @@
   </div>
 </footer>
 
-<script src="app.js?v=11"></script>
-<script src="price-updater.js?v=11"></script>
+<script src="app.js?v=12"></script>
+<script src="price-updater.js?v=12"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="supabase-config.js?v=1"></script>
 <script src="supabase-sync.js?v=3"></script>
@@ -366,15 +366,27 @@
     }
   }
 
-  // Re-render dashboard khi Supabase mang về data mới
+  // Re-render dashboard khi Supabase realtime mang về data mới (từ máy khác)
   window.addEventListener('supabase-changed', () => {
     location.reload();
   });
-  // Re-render khi mới login
+
+  // Khi user login: pull data về background, không reload (tránh loop)
+  // App đã render từ localStorage rồi, pull về sẽ update localStorage và
+  // realtime sẽ kích hoạt reload nếu có thay đổi.
   if (typeof onAuthStateChange === 'function') {
-    onAuthStateChange((event) => {
-      if (event === 'SIGNED_IN') {
-        setTimeout(() => location.reload(), 500);
+    onAuthStateChange(async (event) => {
+      if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
+        if (typeof pullEntries === 'function' && typeof isLoggedIn === 'function' && isLoggedIn()) {
+          // Pull background, kiểm tra có data mới không
+          const beforeCount = (typeof loadEntriesRaw === 'function') ? loadEntriesRaw().length : 0;
+          await pullEntries();
+          const afterCount = (typeof loadEntriesRaw === 'function') ? loadEntriesRaw().length : 0;
+          // Chỉ reload nếu data thực sự khác (cloud có entries mới so với local)
+          if (afterCount !== beforeCount) {
+            location.reload();
+          }
+        }
       }
     });
   }
