@@ -298,3 +298,24 @@ if (typeof document !== 'undefined') {
     initSupabase();
   }
 }
+
+/* ==========================================================================
+   Export to window — đảm bảo accessible từ inline scripts trong HTML
+   ========================================================================== */
+
+if (typeof window !== 'undefined') {
+  window.signUp = signUp;
+  window.signIn = signIn;
+  window.signOut = signOut;
+  window.resetPassword = resetPassword;
+  window.getCurrentUser = getCurrentUser;
+  window.isLoggedIn = isLoggedIn;
+  window.onAuthStateChange = onAuthStateChange;
+  window.onSyncStatus = onSyncStatus;
+  window.pullEntries = pullEntries;
+  window.pushEntry = pushEntry;
+  window.pushAllEntries = pushAllEntries;
+  window.migrateLocalToCloud = migrateLocalToCloud;
+  window.initSupabase = initSupabase;
+  window.getSupabaseClient = () => supabase;
+}

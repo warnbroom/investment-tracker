@@ -230,7 +230,7 @@
 <script src="price-updater.js?v=11"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="supabase-config.js?v=1"></script>
-<script src="supabase-sync.js?v=1"></script>
+<script src="supabase-sync.js?v=2"></script>
 <script>
 (function () {
   const entries = loadEntries();
@@ -676,9 +676,11 @@
 
   async function checkMigrate() {
     if (!isLoggedIn()) return;
+    const sb = getSupabaseClient();
+    if (!sb) return;
     // Check cloud entries count
     try {
-      const { count } = await supabase
+      const { count } = await sb
         .from('entries')
         .select('*', { count: 'exact', head: true })
         .eq('user_id', getCurrentUser().id);
