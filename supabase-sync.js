@@ -157,8 +157,19 @@
       if (result.error) throw result.error;
 
       const entries = result.data.map(dbRowToEntry);
-      saveEntriesRaw(entries, { skipPush: true });
 
+      // SAFETY: nếu cloud trả về 0 entries NHƯNG local có data → KHÔNG overwrite.
+      // User có data local, có thể chưa migrate. Để Phân tích page hiển thị migrate prompt.
+      if (entries.length === 0 && typeof loadEntriesRaw === 'function') {
+        const localCount = loadEntriesRaw().length;
+        if (localCount > 0) {
+          console.warn('[Supabase] Cloud trống, local có ' + localCount + ' mục — KHÔNG overwrite. Vào Phân tích để migrate.');
+          emitSyncStatus('synced', 'Cloud trống, giữ local');
+          return { success: true, count: 0, skipped: true };
+        }
+      }
+
+      saveEntriesRaw(entries, { skipPush: true });
       emitSyncStatus('synced', 'Đã đồng bộ');
       return { success: true, count: entries.length };
     } catch (e) {

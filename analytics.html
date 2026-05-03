@@ -4,7 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Phân tích — Sổ Cái</title>
-<link rel="stylesheet" href="styles.css?v=12" />
+<link rel="stylesheet" href="styles.css?v=13" />
 <!-- PWA & icons -->
 <link rel="manifest" href="manifest.webmanifest" />
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png" />
@@ -226,11 +226,11 @@
   </div>
 </footer>
 
-<script src="app.js?v=12"></script>
-<script src="price-updater.js?v=12"></script>
+<script src="app.js?v=13"></script>
+<script src="price-updater.js?v=13"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="supabase-config.js?v=1"></script>
-<script src="supabase-sync.js?v=3"></script>
+<script src="supabase-sync.js?v=4"></script>
 <script>
 (function () {
   const entries = loadEntries();
@@ -521,17 +521,29 @@
     const file = ev.target.files[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = () => {
+    reader.onload = async () => {
       try {
         const data = JSON.parse(reader.result);
         if (!Array.isArray(data)) throw new Error('Invalid format');
-        if (confirm(`Nhập ${data.length} mục và ghi đè dữ liệu hiện tại?`)) {
-          saveEntries(data);
-          toast('Đã nhập dữ liệu');
-          setTimeout(() => location.reload(), 800);
+        const isLogged = (typeof isLoggedIn === 'function' && isLoggedIn());
+        const msg = isLogged
+          ? `Nhập ${data.length} mục và đẩy lên cloud (ghi đè dữ liệu hiện tại)?`
+          : `Nhập ${data.length} mục và ghi đè dữ liệu hiện tại?`;
+        if (!confirm(msg)) return;
+        saveEntries(data);
+        toast('Đã nhập dữ liệu local');
+        if (isLogged && typeof pushAllEntries === 'function') {
+          toast('Đang đẩy lên cloud…');
+          const r = await pushAllEntries(data);
+          if (r.success) {
+            toast(`Đã đẩy ${r.count} mục lên cloud`);
+          } else {
+            toast('Local OK nhưng cloud lỗi: ' + (r.error || r.reason));
+          }
         }
+        setTimeout(() => location.reload(), 1200);
       } catch (e) {
-        toast('File JSON không hợp lệ');
+        toast('Lỗi: ' + e.message);
       }
     };
     reader.readAsText(file);
