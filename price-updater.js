@@ -294,8 +294,11 @@ async function updateAllPrices(onProgress = () => {}) {
           summary.goldFail++;
           continue;
         }
-        entry.currentPrice = priced.buy;
-        entry._lastMatched = priced.matchedName;
+        // Persist qua updateEntry — đảm bảo updatedAt mới + push Supabase
+        updateEntry(entry.id, {
+          currentPrice: priced.buy,
+          _lastMatched: priced.matchedName,
+        });
         onProgress(`✓ ${entry.name}: ${formatMoney(priced.buy)} đ/chỉ (từ "${priced.matchedName}")`, 'ok');
         summary.goldOk++;
       }
@@ -323,8 +326,10 @@ async function updateAllPrices(onProgress = () => {}) {
           summary.fundFail++;
           continue;
         }
-        entry.currentNav = priced.nav;
-        entry._lastNavDate = priced.navDate;
+        updateEntry(entry.id, {
+          currentNav: priced.nav,
+          _lastNavDate: priced.navDate,
+        });
         onProgress(`✓ ${entry.fundCode}: NAV ${formatMoney(priced.nav)} đ (${priced.navDate || 'không rõ ngày'})`, 'ok');
         summary.fundOk++;
       }
@@ -347,16 +352,17 @@ async function updateAllPrices(onProgress = () => {}) {
 
     if (usdData) {
       for (const entry of usdEntries) {
-        entry.currentRate = usdData.buyTransfer;
-        entry._lastRateSource = 'Vietcombank (Mua CK)';
+        updateEntry(entry.id, {
+          currentRate: usdData.buyTransfer,
+          _lastRateSource: 'Vietcombank (Mua CK)',
+        });
         onProgress(`✓ ${entry.name}: ${formatMoney(usdData.buyTransfer)} đ/USD`, 'ok');
         summary.usdOk++;
       }
     }
   }
 
-  saveEntries(entries);
-
+  // Lưu price cache (timestamp + summary) — phòng trường hợp không có Supabase
   const cache = {
     lastUpdate: new Date().toISOString(),
     summary,
