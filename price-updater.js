@@ -152,23 +152,34 @@ function matchGoldPrice(dojiRows, goldType) {
 }
 
 /* ==========================================================================
-   USD — tỷ giá Vietcombank qua webgia.com
-   Lấy giá "Mua chuyển khoản" (cột thứ 4 trong bảng webgia VCB).
+   FOREX — tỷ giá ngoại tệ Vietcombank qua webgia.com
+   Lấy giá "Mua chuyển khoản" (cột 4 trong bảng webgia VCB).
+   Hỗ trợ mọi mã ngoại tệ có trên Vietcombank: USD, EUR, GBP, JPY, AUD,
+   CAD, SGD, CHF, CNY, KRW, THB, HKD, NZD, ...
    ========================================================================== */
 
-async function fetchUsdRate() {
+/**
+ * Fetch tỷ giá Mua chuyển khoản của 1 mã ngoại tệ.
+ * @param {string} currencyCode - Mã ngoại tệ (vd 'USD', 'EUR', 'JPY')
+ */
+async function fetchForexRate(currencyCode) {
   const { text: html } = await fetchViaProxy('https://webgia.com/ty-gia/vietcombank/');
-  return parseUsdRate(html);
+  return parseForexRate(html, currencyCode);
+}
+
+// Backward compat: giữ tên cũ
+async function fetchUsdRate() {
+  return fetchForexRate('USD');
 }
 
 /**
- * Parse bảng tỷ giá Vietcombank từ webgia.
+ * Parse 1 dòng ngoại tệ cụ thể trong bảng tỷ giá Vietcombank từ webgia.
  * Format: <tr> có 5 <td>: [Mã, Tên, Mua TM, Mua CK, Bán TM]
- * Tìm dòng USD, lấy cột 4 (index 3) = Mua chuyển khoản.
  */
-function parseUsdRate(html) {
+function parseForexRate(html, currencyCode) {
   const parser = new DOMParser();
   const doc = parser.parseFromString(html, 'text/html');
+  const target = (currencyCode || 'USD').toUpperCase();
 
   const trs = doc.querySelectorAll('tr');
   for (const tr of trs) {
@@ -176,7 +187,7 @@ function parseUsdRate(html) {
     if (tds.length !== 5) continue;
 
     const code = tds[0].textContent.trim().toUpperCase();
-    if (code !== 'USD') continue;
+    if (code !== target) continue;
 
     // Cột 4 (index 3) = Mua chuyển khoản
     const buyTransferRaw = tds[3].textContent.trim();
@@ -184,9 +195,10 @@ function parseUsdRate(html) {
     const cleaned = buyTransferRaw.replace(/\./g, '').replace(',', '.');
     const rate = parseFloat(cleaned);
 
-    if (isNaN(rate) || rate < 10000) continue; // USD phải > 10k VND
+    if (isNaN(rate) || rate <= 0) continue;
 
     return {
+      currency: target,
       buyTransfer: rate,
       buyCash: parseVcbNumber(tds[2].textContent.trim()),
       sellCash: parseVcbNumber(tds[4].textContent.trim()),
@@ -196,6 +208,9 @@ function parseUsdRate(html) {
 
   return null;
 }
+
+// Backward compat alias
+const parseUsdRate = parseForexRate;
 
 function parseVcbNumber(text) {
   const cleaned = text.replace(/\./g, '').replace(',', '.');
@@ -336,27 +351,39 @@ async function updateAllPrices(onProgress = () => {}) {
     }
   }
 
-  // 3) USD (Vietcombank qua webgia)
+  // 3) FOREX (Vietcombank qua webgia) — hỗ trợ mọi loại ngoại tệ
   if (usdEntries.length > 0) {
-    onProgress(`Tải tỷ giá USD Vietcombank…`, 'info');
-    let usdData = null;
+    onProgress(`Tải tỷ giá ngoại tệ Vietcombank…`, 'info');
+    let html = null;
     try {
-      usdData = await fetchUsdRate();
-      if (!usdData) throw new Error('Không tìm thấy dòng USD trong bảng tỷ giá.');
-      onProgress(`VCB: USD mua chuyển khoản = ${formatMoney(usdData.buyTransfer)} đ`, 'ok');
+      const fetched = await fetchViaProxy('https://webgia.com/ty-gia/vietcombank/');
+      html = fetched.text;
+      onProgress(`VCB: nhận bảng tỷ giá`, 'ok');
     } catch (e) {
-      onProgress(`USD thất bại: ${e.message}`, 'error');
-      summary.errors.push('USD: ' + e.message);
+      onProgress(`Tỷ giá thất bại: ${e.message}`, 'error');
+      summary.errors.push('Forex: ' + e.message);
       summary.usdFail = usdEntries.length;
     }
 
-    if (usdData) {
+    if (html) {
+      // Cache parse theo từng currency để khỏi parse lại cùng HTML nhiều lần
+      const rateCache = {};
       for (const entry of usdEntries) {
+        const currency = (entry.currency || 'USD').toUpperCase();
+        if (!(currency in rateCache)) {
+          rateCache[currency] = parseForexRate(html, currency);
+        }
+        const rate = rateCache[currency];
+        if (!rate) {
+          onProgress(`✗ ${entry.name}: không tìm thấy ${currency} trong bảng VCB`, 'warn');
+          summary.usdFail++;
+          continue;
+        }
         updateEntry(entry.id, {
-          currentRate: usdData.buyTransfer,
-          _lastRateSource: 'Vietcombank (Mua CK)',
+          currentRate: rate.buyTransfer,
+          _lastRateSource: `Vietcombank (${currency} Mua CK)`,
         });
-        onProgress(`✓ ${entry.name}: ${formatMoney(usdData.buyTransfer)} đ/USD`, 'ok');
+        onProgress(`✓ ${entry.name}: ${formatMoney(rate.buyTransfer)} đ/${currency}`, 'ok');
         summary.usdOk++;
       }
     }

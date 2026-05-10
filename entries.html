@@ -61,7 +61,7 @@
             <span class="type-btn-num">№ 03 &rarr;</span>
           </button>
           <button class="type-btn" data-type="usd">
-            <span class="type-btn-label">USD</span>
+            <span class="type-btn-label">Ngoại tệ</span>
             <span class="type-btn-num">№ 04 &rarr;</span>
           </button>
         </div>
@@ -186,18 +186,36 @@
               <input type="text" id="f-store" name="store" placeholder="SJC, PNJ, DOJI..." />
             </div>
 
-            <!-- USD fields -->
+            <!-- Forex (foreign currency) fields -->
             <div class="form-field usd-field" style="display:none;">
-              <label for="f-usdAmount">Số USD <span class="hint">đơn vị USD</span></label>
+              <label for="f-currency">Loại ngoại tệ</label>
+              <select id="f-currency" name="currency">
+                <option value="USD">USD — Đô la Mỹ</option>
+                <option value="EUR">EUR — Euro</option>
+                <option value="GBP">GBP — Bảng Anh</option>
+                <option value="JPY">JPY — Yên Nhật</option>
+                <option value="AUD">AUD — Đô la Úc</option>
+                <option value="CAD">CAD — Đô la Canada</option>
+                <option value="SGD">SGD — Đô la Singapore</option>
+                <option value="CHF">CHF — Franc Thụy Sĩ</option>
+                <option value="CNY">CNY — Nhân dân tệ</option>
+                <option value="HKD">HKD — Đô la Hồng Kông</option>
+                <option value="KRW">KRW — Won Hàn Quốc</option>
+                <option value="THB">THB — Baht Thái</option>
+                <option value="NZD">NZD — Đô la New Zealand</option>
+              </select>
+            </div>
+            <div class="form-field usd-field" style="display:none;">
+              <label for="f-usdAmount">Số ngoại tệ <span class="hint" id="hint-usd-unit">đơn vị USD</span></label>
               <input type="number" id="f-usdAmount" name="usdAmount" min="0" step="0.01" placeholder="1000" />
             </div>
             <div class="form-field usd-field" style="display:none;">
-              <label for="f-buyRate">Tỷ giá mua <span class="hint">đ / USD</span></label>
+              <label for="f-buyRate">Tỷ giá mua <span class="hint" id="hint-buy-rate">đ / USD</span></label>
               <input type="number" id="f-buyRate" name="buyRate" min="0" step="0.01" placeholder="25800" />
             </div>
             <div class="form-field usd-field" style="display:none;">
               <label for="f-currentRate">
-                <span>Tỷ giá hiện tại <span class="hint">đ / USD</span></span>
+                <span>Tỷ giá hiện tại <span class="hint" id="hint-current-rate">đ / USD</span></span>
                 <button type="button" class="mini-fetch-btn" id="fetch-usd-btn" title="Lấy tỷ giá Mua CK Vietcombank">↻ Tự lấy</button>
               </label>
               <input type="number" id="f-currentRate" name="currentRate" min="0" step="0.01" placeholder="26125" />
@@ -239,13 +257,13 @@
 
       <!-- Price updater (chuyển từ trang Phân tích sang) -->
       <div id="updater-bar" style="display:flex; gap:1rem; align-items:center; flex-wrap:wrap; padding:1rem 1.25rem; background: var(--paper-deep); border: 1px solid var(--rule); border-left: 3px solid var(--accent); margin-bottom: 1.5rem;">
-        <button class="btn btn-primary" id="btn-update-prices" type="button">↻ Cập nhật giá vàng, NAV quỹ &amp; tỷ giá USD</button>
+        <button class="btn btn-primary" id="btn-update-prices" type="button">↻ Cập nhật giá vàng, NAV quỹ &amp; tỷ giá ngoại tệ</button>
         <div style="font-family: var(--font-mono); font-size: 0.72rem; color: var(--ink-mute); line-height: 1.5;">
           <div>Cập nhật gần nhất:</div>
           <div id="last-update-time" style="color: var(--ink); font-weight: 500;">&mdash;</div>
         </div>
         <span id="updater-hint" style="color: var(--ink-mute); font-size: 0.78rem; font-style: italic; flex: 1; min-width: 200px;">
-          Lấy giá từ webgia.com (vàng, USD/VCB) &amp; fmarket.vn (NAV quỹ).
+          Lấy giá từ webgia.com (vàng, ngoại tệ/VCB) &amp; fmarket.vn (NAV quỹ).
         </span>
       </div>
       <div id="updater-log" style="display:none; margin-bottom: 1.5rem; padding:1rem 1.25rem; background: var(--paper); border: 1px solid var(--rule-strong); font-family: var(--font-mono); font-size: 0.78rem; line-height: 1.75; max-height: 240px; overflow-y: auto;"></div>
@@ -255,7 +273,7 @@
         <button class="filter-chip" data-filter="deposit">Tiền gửi</button>
         <button class="filter-chip" data-filter="fund">Quỹ mở</button>
         <button class="filter-chip" data-filter="gold">Vàng</button>
-        <button class="filter-chip" data-filter="usd">USD</button>
+        <button class="filter-chip" data-filter="usd">Ngoại tệ</button>
       </div>
 
       <div id="entries-list-wrap" style="overflow-x: auto;"><!-- populated by JS --></div>
@@ -270,8 +288,8 @@
   </div>
 </footer>
 
-<script src="app.js?v=15"></script>
-<script src="price-updater.js?v=16"></script>
+<script src="app.js?v=16"></script>
+<script src="price-updater.js?v=17"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="supabase-config.js?v=1"></script>
 <script src="supabase-sync.js?v=4"></script>
@@ -370,6 +388,24 @@
   const goldBtn = document.getElementById('fetch-gold-btn');
   const usdBtn = document.getElementById('fetch-usd-btn');
 
+  /* ---- Currency dropdown: cập nhật hints & tooltip nút Tự lấy ---- */
+  const currencyEl = document.getElementById('f-currency');
+  const hintUsdUnit = document.getElementById('hint-usd-unit');
+  const hintBuyRate = document.getElementById('hint-buy-rate');
+  const hintCurrentRate = document.getElementById('hint-current-rate');
+
+  function refreshCurrencyLabels() {
+    const c = (currencyEl.value || 'USD').toUpperCase();
+    if (hintUsdUnit) hintUsdUnit.textContent = 'đơn vị ' + c;
+    if (hintBuyRate) hintBuyRate.textContent = 'đ / ' + c;
+    if (hintCurrentRate) hintCurrentRate.textContent = 'đ / ' + c;
+    if (usdBtn) usdBtn.title = 'Lấy tỷ giá Mua CK ' + c + ' từ Vietcombank';
+  }
+  if (currencyEl) {
+    currencyEl.addEventListener('change', refreshCurrencyLabels);
+    refreshCurrencyLabels();
+  }
+
   navBtn.addEventListener('click', async () => {
     const code = document.getElementById('f-fundCode').value.trim();
     if (!code) { toast('Nhập mã quỹ trước (VD: VESAF)'); return; }
@@ -417,15 +453,16 @@
   });
 
   usdBtn.addEventListener('click', async () => {
+    const currency = (currencyEl && currencyEl.value) ? currencyEl.value : 'USD';
     usdBtn.disabled = true;
     usdBtn.textContent = '…';
     try {
-      const rateData = await fetchUsdRate();
+      const rateData = await fetchForexRate(currency);
       if (!rateData) {
-        toast('Không tìm thấy tỷ giá USD trên bảng');
+        toast(`Không tìm thấy tỷ giá ${currency} trên bảng`);
       } else {
         document.getElementById('f-currentRate').value = rateData.buyTransfer;
-        toast(`VCB Mua CK: ${formatMoney(rateData.buyTransfer)} đ/USD`);
+        toast(`VCB Mua CK: ${formatMoney(rateData.buyTransfer)} đ/${currency}`);
       }
     } catch (e) {
       toast('Lỗi: ' + e.message.slice(0, 60));
@@ -448,7 +485,7 @@
       deposit: ['name','bank','amount','rate','termMonths','startDate','interestType','note'],
       fund:    ['name','fundCode','fundCompany','buyAmount','units','buyNav','currentNav','startDate','note'],
       gold:    ['name','goldType','weight','buyPrice','currentPrice','startDate','store','note'],
-      usd:     ['name','usdAmount','buyRate','currentRate','startDate','source','note'],
+      usd:     ['name','currency','usdAmount','buyRate','currentRate','startDate','source','note'],
     };
 
     // Need to grab correct startDate input based on visible section
@@ -624,12 +661,15 @@
       const d = document.getElementById('f-startDate-g');
       if (d) d.value = e.startDate || '';
     } else if (e.type === 'usd') {
+      setVal('currency', e.currency || 'USD');
       setVal('usdAmount', e.usdAmount);
       setVal('buyRate', e.buyRate);
       setVal('currentRate', e.currentRate);
       setVal('source', e.source);
       const d = document.getElementById('f-startDate-u');
       if (d) d.value = e.startDate || '';
+      // Trigger refresh hints theo currency
+      if (typeof refreshCurrencyLabels === 'function') refreshCurrencyLabels();
     }
 
     // Update UI: nút Submit text + show Cancel + scroll lên form
@@ -666,7 +706,7 @@
     if (e.type === 'deposit') return e.bank || '';
     if (e.type === 'fund') return [e.fundCode, e.fundCompany].filter(Boolean).join(' · ');
     if (e.type === 'gold') return [e.goldType, e.store].filter(Boolean).join(' · ');
-    if (e.type === 'usd') return e.source || '';
+    if (e.type === 'usd') return [e.currency || 'USD', e.source].filter(Boolean).join(' · ');
     return '';
   }
 
@@ -744,7 +784,7 @@
         currentUnitPrice = formatMoney(Number(e.currentPrice) || Number(e.buyPrice) || 0, { decimals: 2 });
       } else if (e.type === 'usd') {
         qty = Number(e.usdAmount || 0).toLocaleString('vi-VN', { maximumFractionDigits: 2 });
-        qtyUnit = 'USD';
+        qtyUnit = e.currency || 'USD';
         buyUnitPrice = formatMoney(Number(e.buyRate) || 0, { decimals: 2 });
         currentUnitPrice = formatMoney(Number(e.currentRate) || Number(e.buyRate) || 0, { decimals: 2 });
       }
@@ -871,7 +911,7 @@
       updateBtn.disabled = false;
       updateBtn.style.opacity = '';
       updateBtn.style.cursor = '';
-      updaterHint.textContent = 'Lấy giá từ webgia.com (vàng, USD/VCB) & fmarket.vn (NAV quỹ).';
+      updaterHint.textContent = 'Lấy giá từ webgia.com (vàng, ngoại tệ/VCB) & fmarket.vn (NAV quỹ).';
     }
   }
   refreshUpdaterAvailability();

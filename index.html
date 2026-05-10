@@ -134,8 +134,8 @@
 
         <div class="pillar">
           <div class="pillar-num">№ 04</div>
-          <div class="pillar-name">USD</div>
-          <div class="pillar-name-en">US Dollar holdings</div>
+          <div class="pillar-name">Ngoại tệ</div>
+          <div class="pillar-name-en">Foreign currency</div>
           <div class="pillar-value" id="pillar-usd-value">0<span class="num-currency">đ</span></div>
           <div class="pillar-meta">
             <span class="pillar-meta-label">Tỷ trọng</span>
@@ -172,7 +172,7 @@
           </div>
           <div class="alloc-legend-item">
             <span class="alloc-swatch" style="background: var(--usd);"></span>
-            USD <span class="num" id="legend-usd">0%</span>
+            Ngoại tệ <span class="num" id="legend-usd">0%</span>
           </div>
         </div>
       </div>
@@ -201,8 +201,8 @@
   </div>
 </footer>
 
-<script src="app.js?v=15"></script>
-<script src="price-updater.js?v=16"></script>
+<script src="app.js?v=16"></script>
+<script src="price-updater.js?v=17"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="supabase-config.js?v=1"></script>
 <script src="supabase-sync.js?v=4"></script>
@@ -248,7 +248,7 @@
       { key: 'deposit', cls: 'alloc-seg-deposit', label: 'Tiền gửi' },
       { key: 'fund',    cls: 'alloc-seg-fund',    label: 'Quỹ mở'   },
       { key: 'gold',    cls: 'alloc-seg-gold',    label: 'Vàng'     },
-      { key: 'usd',     cls: 'alloc-seg-usd',     label: 'USD'      },
+      { key: 'usd',     cls: 'alloc-seg-usd',     label: 'Ngoại tệ' },
     ];
     types.forEach(t => {
       const share = s.byType[t.key].share;

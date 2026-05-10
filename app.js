@@ -343,7 +343,7 @@ function typeLabel(type) {
     deposit: 'Tiền gửi',
     fund: 'Quỹ mở',
     gold: 'Vàng',
-    usd: 'USD',
+    usd: 'Ngoại tệ',
   }[type] || type;
 }
 
