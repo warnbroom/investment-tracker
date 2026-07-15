@@ -45,7 +45,7 @@ function buildProxyUrl(targetUrl) {
 }
 
 /* -------- GOLD TYPE MAPPING --------
-   Tên loại vàng trên webgia.com/gia-vang/doji (data từ DOJI):
+   Tên loại vàng trên giavang.org/trong-nuoc/doji (data DOJI):
      - "SJC Lẻ"
      - "AVPL" (Kim TT)
      - "Nhẫn tròn 999 Hưng Thịnh Vượng"
@@ -92,7 +92,7 @@ async function fetchViaProxy(targetUrl, options = {}) {
 
 /** Test proxy — gọi thử tới webgia.com */
 async function testProxy() {
-  const { text } = await fetchViaProxy('https://webgia.com/gia-vang/doji/');
+  const { text } = await fetchViaProxy('https://giavang.org/trong-nuoc/doji/');
   const rows = parseGoldHtml(text);
   if (rows.length === 0) throw new Error('Proxy OK nhưng không parse được HTML bảng giá.');
   return { rowCount: rows.length, sampleName: rows[0].name };
@@ -100,46 +100,80 @@ async function testProxy() {
 
 /* ==========================================================================
    GOLD — scrape webgia.com/gia-vang/doji (data từ DOJI)
-   Dùng webgia vì giavang.doji.vn chặn datacenter IPs của Cloudflare.
-   Webgia cung cấp CÙNG data từ DOJI, chỉ khác đường vào.
+   GOLD — scrape giavang.org/trong-nuoc/doji (data từ DOJI)
+   Đơn vị nguồn: x1000đ/lượng → convert sang VND/chỉ (× 100).
+   1 lượng = 10 chỉ; nhân 1000 rồi chia 10 = nhân 100.
    ========================================================================== */
 
 async function fetchDojiGoldPrices() {
-  const { text: html } = await fetchViaProxy('https://webgia.com/gia-vang/doji/');
+  const { text: html } = await fetchViaProxy('https://giavang.org/trong-nuoc/doji/');
   return parseGoldHtml(html);
 }
 
 /**
- * Parse HTML bảng giá webgia.
- * Format: <tr> có 7 <td>: [Tên, HàNội mua, HàNội bán, ĐàNẵng mua,
- * ĐàNẵng bán, TPHCM mua, TPHCM bán]. Giá đã ở VND/chỉ.
- * Lấy giá Hà Nội (cột 2 = mua, cột 3 = bán).
+ * Parse HTML bảng giá vàng từ giavang.org.
+ *
+ * Format nguồn: bảng có nhiều <tr> lồng trong nhiều khu vực (Hà Nội, Đà Nẵng, TP.HCM)
+ * dùng rowspan cho cột Khu vực. Mỗi loại vàng lặp lại 3 lần (mỗi khu vực 1 dòng).
+ *
+ * Chiến lược: quét tất cả <td>, tìm TD có text match tên loại vàng.
+ * Từ đó lấy 2 TD kế tiếp = [mua, bán]. Giá x1000đ/lượng → ×100 = VND/chỉ.
+ * Skip lặp: chỉ giữ mỗi loại vàng 1 lần (lần đầu gặp).
  */
 function parseGoldHtml(html) {
-  const rows = [];
   const parser = new DOMParser();
   const doc = parser.parseFromString(html, 'text/html');
 
-  const trs = doc.querySelectorAll('tr');
-  trs.forEach(tr => {
-    const tds = tr.querySelectorAll('td');
-    if (tds.length !== 7) return;
-    const name = tds[0].textContent.trim();
-    if (!name || name.toLowerCase().includes('mua vào')) return; // skip header
+  const KNOWN_TYPES = [
+    'SJC Lẻ',
+    'AVPL',
+    'Nhẫn tròn 999 Hưng Thịnh Vượng',
+    'Nữ trang 99.99',
+    'Nữ trang 99.9',
+    'Nữ trang 99',
+  ];
 
-    const buyRaw = tds[1].textContent.trim().replace(/[.,\s]/g, '');
-    const sellRaw = tds[2].textContent.trim().replace(/[.,\s]/g, '');
-    const buy = parseInt(buyRaw, 10);
-    const sell = parseInt(sellRaw, 10);
-    if (isNaN(buy) || isNaN(sell) || buy < 1000000) return; // giá > 1tr/chỉ
+  const rows = [];
+  const seen = new Set();
 
-    rows.push({ name, buy, sell });
+  const tds = doc.querySelectorAll('td');
+  tds.forEach(td => {
+    const name = td.textContent.trim();
+    if (seen.has(name)) return;
+
+    // Match theo tên chính xác (không case-sensitive, loose match)
+    const matched = KNOWN_TYPES.find(t =>
+      name.toLowerCase() === t.toLowerCase() ||
+      name.toLowerCase().replace(/\s+/g, ' ') === t.toLowerCase().replace(/\s+/g, ' ')
+    );
+    if (!matched) return;
+
+    // Lấy 2 TD kế tiếp = mua vào, bán ra
+    const buyTd = td.nextElementSibling;
+    const sellTd = buyTd ? buyTd.nextElementSibling : null;
+    if (!buyTd || !sellTd) return;
+
+    // Format giá: "143.400" hoặc "143,400" — dấu chấm/phẩy là separator hàng nghìn
+    const buyRaw = buyTd.textContent.trim().replace(/[.,\s]/g, '');
+    const sellRaw = sellTd.textContent.trim().replace(/[.,\s]/g, '');
+    const buyThousand = parseInt(buyRaw, 10); // x1000đ/lượng
+    const sellThousand = parseInt(sellRaw, 10);
+
+    if (isNaN(buyThousand) || isNaN(sellThousand) || buyThousand < 100) return;
+
+    // Chuyển x1000đ/lượng → VND/chỉ: × 1000 ÷ 10 = × 100
+    rows.push({
+      name: matched,
+      buy: buyThousand * 100,
+      sell: sellThousand * 100,
+    });
+    seen.add(name);
   });
 
   return rows;
 }
 
-// Alias
+// Alias backward compat
 const parseDojiHtml = parseGoldHtml;
 
 function matchGoldPrice(dojiRows, goldType) {

@@ -23,6 +23,7 @@
  */
 
 const ALLOWED_HOSTS = [
+  'giavang.org',
   'webgia.com',
   'api.fmarket.vn',
   'fmarket.vn',
