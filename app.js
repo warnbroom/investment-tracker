@@ -372,5 +372,51 @@ function updateMastheadDate() {
   el.textContent = `${now.getDate()} ${months[now.getMonth()]} ${now.getFullYear()}`;
 }
 
+/* -------------------- Migrations -------------------- */
+
+/**
+ * Migration v1: đơn giản hoá loại vàng còn 2 lựa chọn (SJC, 9999).
+ * Entry gold có goldType KHÁC 'SJC' và KHÁC '9999' (vd: '24k', '18k',
+ * 'other', 'AVPL'...) sẽ được map về '9999'. Chạy đúng MỘT lần nhờ flag
+ * localStorage `gold_types_migrated_v1`. Đi qua updateEntry() để set
+ * updatedAt và push lên Supabase (không mutate object trực tiếp).
+ */
+function migrateOldGoldTypes() {
+  try {
+    if (localStorage.getItem('gold_types_migrated_v1') === 'true') return;
+    const raw = loadEntriesRaw();
+    const toMigrate = raw.filter(e =>
+      e.type === 'gold' && !e.deleted &&
+      e.goldType && e.goldType !== 'SJC' && e.goldType !== '9999'
+    );
+    toMigrate.forEach(e => {
+      updateEntry(e.id, { goldType: '9999' });
+      console.log('[migrate] goldType "' + e.goldType + '" → "9999" (' + e.id + ')');
+    });
+    localStorage.setItem('gold_types_migrated_v1', 'true');
+    if (toMigrate.length > 0 && typeof toast === 'function') {
+      toast('Đã cập nhật ' + toMigrate.length + ' mục vàng sang loại 9999');
+    }
+  } catch (err) {
+    console.error('[migrate] gold types failed:', err);
+  }
+}
+
 // Run on every page
-document.addEventListener('DOMContentLoaded', updateMastheadDate);
+document.addEventListener('DOMContentLoaded', function() {
+  updateMastheadDate();
+  // Chạy migration sau khi dữ liệu đã "settle":
+  // - Logged in: đợi lần sync đầu tiên hoàn tất (pull cloud xong) rồi mới migrate
+  //   để không migrate trên local cũ rồi bị pull đè.
+  // - Offline / chưa đăng nhập: fallback chạy trên local sau một khoảng ngắn.
+  if (typeof onSyncStatus === 'function') {
+    onSyncStatus(function(status) {
+      if (status === 'synced') migrateOldGoldTypes();
+    });
+  }
+  setTimeout(function() {
+    if (typeof isLoggedIn !== 'function' || !isLoggedIn()) {
+      migrateOldGoldTypes();
+    }
+  }, 1500);
+});
