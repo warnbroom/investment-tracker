@@ -45,20 +45,15 @@ function buildProxyUrl(targetUrl) {
 }
 
 /* -------- GOLD TYPE MAPPING --------
-   Tên loại vàng trên giavang.org/trong-nuoc/doji (data DOJI):
-     - "SJC Lẻ"
-     - "AVPL" (Kim TT)
-     - "Nhẫn tròn 999 Hưng Thịnh Vượng"
-     - "Nữ trang 99.99"
-     - "Nữ trang 99.9"
-     - "Nữ trang 99"                                                    */
+   Match tên loại vàng theo cả 2 nguồn:
+   - banggia.doji.vn API (materialName): "VÀNG MIẾNG SJC",
+     "NHẪN TRÒN 9999 HƯNG THỊNH VƯỢNG"
+   - giavang.org (fallback): "SJC Lẻ", "Nhẫn tròn 999 Hưng Thịnh Vượng"
+   Sau khi đơn giản hoá dropdown chỉ còn 2 loại: SJC và 9999.            */
 
 const GOLD_PATTERNS = {
-  'SJC':   [/SJC\s*L[ẻe]/i, /^SJC\b/im],
-  '9999':  [/Nh[ẫẫậ]n\s+tr[òoó]n\s+999/i, /H[ưưừ]ng\s*Th[ịị]nh/i],
-  '24k':   [/N[ữữ]\s+trang\s+99[\.,]99/i],
-  '18k':   [/N[ữữ]\s+trang\s+99[\.,]9(?![\.,\d])/i],
-  'other': [/N[ữữ]\s+trang\s+99(?![\.,\d])/i],
+  'SJC':   [/V[àa]ng\s+mi[ếe]ng\s+SJC/i, /SJC\s*L[ẻe]/i, /\bSJC\b/i],
+  '9999':  [/Nh[ẫậ]n\s+tr[òoó]n\s+999/i, /H[ưừ]ng\s*Th[ịị]nh/i],
 };
 
 /* -------- FETCH VIA PROXY -------- */
@@ -90,24 +85,107 @@ async function fetchViaProxy(targetUrl, options = {}) {
   }
 }
 
-/** Test proxy — gọi thử tới webgia.com */
+/** Test proxy — gọi thử bảng giá vàng DOJI (API chính chủ, fallback giavang). */
 async function testProxy() {
-  const { text } = await fetchViaProxy('https://giavang.org/trong-nuoc/doji/');
-  const rows = parseGoldHtml(text);
-  if (rows.length === 0) throw new Error('Proxy OK nhưng không parse được HTML bảng giá.');
+  const rows = await fetchDojiGoldPrices();
+  if (!rows || rows.length === 0) throw new Error('Proxy OK nhưng không lấy được bảng giá vàng.');
   return { rowCount: rows.length, sampleName: rows[0].name };
 }
 
 /* ==========================================================================
-   GOLD — scrape webgia.com/gia-vang/doji (data từ DOJI)
-   GOLD — scrape giavang.org/trong-nuoc/doji (data từ DOJI)
-   Đơn vị nguồn: x1000đ/lượng → convert sang VND/chỉ (× 100).
-   1 lượng = 10 chỉ; nhân 1000 rồi chia 10 = nhân 100.
+   GOLD — nguồn CHÍNH: API chính chủ DOJI (banggia.doji.vn)
+   Nguồn phụ (fallback): scrape giavang.org/trong-nuoc/doji.
+
+   API DOJI: GET https://banggia.doji.vn/api/TablePrice/GetTablePrice
+     → { status, data: "<base64>", messageObject }
+   Payload `data` mã hoá AES-256-CBC + Pkcs7, giải bằng Web Crypto API
+   (không cần thêm dependency). Key hardcode trong bundle của site
+   (chunk-SBJLWGHF.js), IV = 16 byte đầu của payload sau base64-decode.
+   Giá trong API: nghìn-đồng/chỉ → × 1000 = VND/chỉ.
    ========================================================================== */
 
+// Key AES-256 (hex, 32 byte) trích từ bundle banggia.doji.vn:
+//   chunk-SBJLWGHF.js → class._k = [...].join('')
+const DOJI_AES_KEY_HEX =
+  '7a4b8c3d1e9f2a5b6c0d4e8f3a7b1c5d9e2f6a0b4c8d3e7f1a5b9c2d6e0f4a8b';
+const DOJI_API_URL =
+  'https://banggia.doji.vn/api/TablePrice/GetTablePrice';
+
+function hexToBytes(hex) {
+  const out = new Uint8Array(hex.length / 2);
+  for (let i = 0; i < out.length; i++) {
+    out[i] = parseInt(hex.substr(i * 2, 2), 16);
+  }
+  return out;
+}
+
+function base64ToBytes(b64) {
+  const bin = atob(b64);
+  const out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out;
+}
+
+/**
+ * Giải mã payload `data` của API DOJI → JSON string.
+ * Layout: [ IV 16 byte ][ ciphertext ] (đều nằm trong 1 chuỗi base64).
+ * AES-256-CBC, Pkcs7 padding (Web Crypto tự bỏ padding).
+ */
+async function decryptDojiPayload(b64) {
+  if (typeof crypto === 'undefined' || !crypto.subtle) {
+    throw new Error('Trình duyệt không hỗ trợ Web Crypto (crypto.subtle).');
+  }
+  const raw = base64ToBytes(b64);
+  const iv = raw.slice(0, 16);
+  const ciphertext = raw.slice(16);
+  const key = await crypto.subtle.importKey(
+    'raw', hexToBytes(DOJI_AES_KEY_HEX), { name: 'AES-CBC' }, false, ['decrypt']
+  );
+  const plain = await crypto.subtle.decrypt({ name: 'AES-CBC', iv }, key, ciphertext);
+  return new TextDecoder().decode(plain);
+}
+
+/**
+ * Fetch + decrypt bảng giá vàng từ API chính chủ DOJI.
+ * Trả về mảng { name, buy, sell } với đơn vị VND/chỉ.
+ */
+async function fetchDojiApiPrices() {
+  const { text } = await fetchViaProxy(DOJI_API_URL);
+  let json;
+  try { json = JSON.parse(text); }
+  catch { throw new Error('DOJI API: response không phải JSON'); }
+  if (!json || !json.data) throw new Error('DOJI API: thiếu trường "data"');
+
+  const decrypted = await decryptDojiPayload(json.data);
+  const parsed = JSON.parse(decrypted);
+  // API trả object dạng {"0": {...}, "1": {...}} hoặc array — normalize.
+  const list = Array.isArray(parsed) ? parsed : Object.values(parsed);
+
+  const rows = [];
+  for (const r of list) {
+    const name = (r && r.materialName ? String(r.materialName) : '').trim();
+    const buy = Number(r && r.priceDojiBuyIn);
+    const sell = Number(r && r.priceDojiSellOut);
+    if (!name || !Number.isFinite(buy) || buy <= 0) continue;
+    // nghìn-đồng/chỉ → VND/chỉ
+    rows.push({ name, buy: buy * 1000, sell: Number.isFinite(sell) ? sell * 1000 : buy * 1000 });
+  }
+  if (rows.length === 0) throw new Error('DOJI API: decrypt OK nhưng không có dòng giá hợp lệ');
+  return rows;
+}
+
+/**
+ * Lấy bảng giá vàng. Thử API chính chủ DOJI trước; nếu lỗi (đổi key,
+ * host chưa allow trong Worker, mã hoá đổi...) thì fallback giavang.org.
+ */
 async function fetchDojiGoldPrices() {
-  const { text: html } = await fetchViaProxy('https://giavang.org/trong-nuoc/doji/');
-  return parseGoldHtml(html);
+  try {
+    return await fetchDojiApiPrices();
+  } catch (e) {
+    console.warn('[gold] DOJI API lỗi, fallback giavang.org:', e.message);
+    const { text: html } = await fetchViaProxy('https://giavang.org/trong-nuoc/doji/');
+    return parseGoldHtml(html);
+  }
 }
 
 /**

@@ -7,7 +7,7 @@ Portfolio tracker chạy trên GitHub Pages (`warnbroom.github.io`). Track 4 lo�
 - **Frontend:** Vanilla HTML/CSS/JS (không framework). Deploy: GitHub Pages
 - **Backend/Auth:** Supabase (project: `waaggtdhsxphowyjmlqj.supabase.co`)
 - **Proxy scraping:** Cloudflare Worker (project: `so-cai-proxy.warnbroom.workers.dev`)
-- **Data sources:** giavang.org (vàng DOJI), webgia.com (tỷ giá VCB), api.fmarket.vn (NAV quỹ)
+- **Data sources:** banggia.doji.vn (vàng DOJI, API chính chủ — payload AES-256-CBC, giải bằng Web Crypto; fallback giavang.org), webgia.com (tỷ giá VCB), api.fmarket.vn (NAV quỹ)
 
 ## Files structure
 

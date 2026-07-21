@@ -23,6 +23,7 @@
  */
 
 const ALLOWED_HOSTS = [
+  'banggia.doji.vn',
   'giavang.org',
   'webgia.com',
   'api.fmarket.vn',
