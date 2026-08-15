@@ -260,7 +260,7 @@
           <div id="last-update-time" style="color: var(--ink); font-weight: 500;">&mdash;</div>
         </div>
         <span id="updater-hint" style="color: var(--ink-mute); font-size: 0.78rem; font-style: italic; flex: 1; min-width: 200px;">
-          Lấy giá từ banggia.doji.vn (vàng), webgia.com (ngoại tệ VCB) &amp; fmarket.vn (NAV quỹ).
+          Lấy giá từ banggia.doji.vn (vàng), vietcombank.com.vn (ngoại tệ) &amp; fmarket.vn (NAV quỹ).
         </span>
       </div>
       <div id="updater-log" style="display:none; margin-bottom: 1.5rem; padding:1rem 1.25rem; background: var(--paper); border: 1px solid var(--rule-strong); font-family: var(--font-mono); font-size: 0.78rem; line-height: 1.75; max-height: 240px; overflow-y: auto;"></div>
@@ -286,7 +286,7 @@
 </footer>
 
 <script src="app.js?v=17"></script>
-<script src="price-updater.js?v=19"></script>
+<script src="price-updater.js?v=20"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="supabase-config.js?v=1"></script>
 <script src="supabase-sync.js?v=4"></script>
@@ -908,7 +908,7 @@
       updateBtn.disabled = false;
       updateBtn.style.opacity = '';
       updateBtn.style.cursor = '';
-      updaterHint.textContent = 'Lấy giá từ banggia.doji.vn (vàng), webgia.com (ngoại tệ VCB) &amp; fmarket.vn (NAV quỹ).';
+      updaterHint.textContent = 'Lấy giá từ banggia.doji.vn (vàng), vietcombank.com.vn (ngoại tệ) &amp; fmarket.vn (NAV quỹ).';
     }
   }
   refreshUpdaterAvailability();

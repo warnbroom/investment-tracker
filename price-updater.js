@@ -264,19 +264,27 @@ function matchGoldPrice(dojiRows, goldType) {
 }
 
 /* ==========================================================================
-   FOREX — tỷ giá ngoại tệ Vietcombank qua webgia.com
-   Lấy giá "Mua chuyển khoản" (cột 4 trong bảng webgia VCB).
-   Hỗ trợ mọi mã ngoại tệ có trên Vietcombank: USD, EUR, GBP, JPY, AUD,
-   CAD, SGD, CHF, CNY, KRW, THB, HKD, NZD, ...
+   FOREX — tỷ giá ngoại tệ từ API chính chủ Vietcombank (JSON).
+
+   Endpoint: GET https://www.vietcombank.com.vn/api/exchangerates?date=now
+     → { Count, Date, UpdatedDate, Data: [ {currencyCode, currencyName,
+         cash, transfer, sell, icon}, ... ] }
+   (webgia.com trước đây render bảng bằng JS client-side nên proxy chỉ nhận
+   được bảng rỗng — chuyển sang API chính chủ VCB cho đáng tin cậy.)
+
+   Lấy giá "Mua chuyển khoản" = trường `transfer`. Hỗ trợ mọi mã VCB niêm
+   yết: USD, EUR, GBP, JPY, AUD, CAD, SGD, CHF, CNY, KRW, THB, HKD, ...
    ========================================================================== */
+
+const VCB_FOREX_URL = 'https://www.vietcombank.com.vn/api/exchangerates?date=now';
 
 /**
  * Fetch tỷ giá Mua chuyển khoản của 1 mã ngoại tệ.
  * @param {string} currencyCode - Mã ngoại tệ (vd 'USD', 'EUR', 'JPY')
  */
 async function fetchForexRate(currencyCode) {
-  const { text: html } = await fetchViaProxy('https://webgia.com/ty-gia/vietcombank/');
-  return parseForexRate(html, currencyCode);
+  const { text } = await fetchViaProxy(VCB_FOREX_URL);
+  return parseForexRate(text, currencyCode);
 }
 
 // Backward compat: giữ tên cũ
@@ -285,47 +293,44 @@ async function fetchUsdRate() {
 }
 
 /**
- * Parse 1 dòng ngoại tệ cụ thể trong bảng tỷ giá Vietcombank từ webgia.
- * Format: <tr> có 5 <td>: [Mã, Tên, Mua TM, Mua CK, Bán TM]
+ * Parse tỷ giá 1 mã ngoại tệ từ JSON API Vietcombank.
+ * @param {string} jsonText - response body của VCB_FOREX_URL
+ * @param {string} currencyCode - mã cần lấy (vd 'USD', 'AUD')
+ * Trả về { currency, buyTransfer, buyCash, sellCash, bank } hoặc null.
+ * Giá trị trong API là chuỗi "25950.00" (VND/đơn-vị-tiền, thập phân dấu chấm).
  */
-function parseForexRate(html, currencyCode) {
-  const parser = new DOMParser();
-  const doc = parser.parseFromString(html, 'text/html');
+function parseForexRate(jsonText, currencyCode) {
   const target = (currencyCode || 'USD').toUpperCase();
 
-  const trs = doc.querySelectorAll('tr');
-  for (const tr of trs) {
-    const tds = tr.querySelectorAll('td');
-    if (tds.length !== 5) continue;
+  let json;
+  try { json = JSON.parse(jsonText); }
+  catch { return null; }
 
-    const code = tds[0].textContent.trim().toUpperCase();
-    if (code !== target) continue;
+  const list = (json && Array.isArray(json.Data)) ? json.Data : [];
+  const row = list.find(r => (r.currencyCode || '').toUpperCase() === target);
+  if (!row) return null;
 
-    // Cột 4 (index 3) = Mua chuyển khoản
-    const buyTransferRaw = tds[3].textContent.trim();
-    // Format kiểu "26.125,00" — dấu chấm là hàng nghìn, dấu phẩy là thập phân
-    const cleaned = buyTransferRaw.replace(/\./g, '').replace(',', '.');
-    const rate = parseFloat(cleaned);
+  const buyTransfer = parseVcbNumber(row.transfer);
+  if (!(buyTransfer > 0)) return null;
 
-    if (isNaN(rate) || rate <= 0) continue;
-
-    return {
-      currency: target,
-      buyTransfer: rate,
-      buyCash: parseVcbNumber(tds[2].textContent.trim()),
-      sellCash: parseVcbNumber(tds[4].textContent.trim()),
-      bank: 'Vietcombank',
-    };
-  }
-
-  return null;
+  return {
+    currency: target,
+    buyTransfer,
+    buyCash: parseVcbNumber(row.cash),
+    sellCash: parseVcbNumber(row.sell),
+    bank: 'Vietcombank',
+  };
 }
 
 // Backward compat alias
 const parseUsdRate = parseForexRate;
 
 function parseVcbNumber(text) {
-  const cleaned = text.replace(/\./g, '').replace(',', '.');
+  if (text == null) return 0;
+  // API trả "25950.00" (dấu chấm thập phân). Vẫn chịu được định dạng cũ
+  // kiểu "26.125,00" (dấu chấm hàng nghìn + phẩy thập phân).
+  const s = String(text).trim();
+  const cleaned = s.includes(',') ? s.replace(/\./g, '').replace(',', '.') : s;
   const num = parseFloat(cleaned);
   return isNaN(num) ? 0 : num;
 }
@@ -463,13 +468,13 @@ async function updateAllPrices(onProgress = () => {}) {
     }
   }
 
-  // 3) FOREX (Vietcombank qua webgia) — hỗ trợ mọi loại ngoại tệ
+  // 3) FOREX (API chính chủ Vietcombank) — hỗ trợ mọi loại ngoại tệ
   if (usdEntries.length > 0) {
     onProgress(`Tải tỷ giá ngoại tệ Vietcombank…`, 'info');
-    let html = null;
+    let forexText = null;
     try {
-      const fetched = await fetchViaProxy('https://webgia.com/ty-gia/vietcombank/');
-      html = fetched.text;
+      const fetched = await fetchViaProxy(VCB_FOREX_URL);
+      forexText = fetched.text;
       onProgress(`VCB: nhận bảng tỷ giá`, 'ok');
     } catch (e) {
       onProgress(`Tỷ giá thất bại: ${e.message}`, 'error');
@@ -477,13 +482,13 @@ async function updateAllPrices(onProgress = () => {}) {
       summary.usdFail = usdEntries.length;
     }
 
-    if (html) {
-      // Cache parse theo từng currency để khỏi parse lại cùng HTML nhiều lần
+    if (forexText) {
+      // Cache parse theo từng currency để khỏi parse lại cùng payload nhiều lần
       const rateCache = {};
       for (const entry of usdEntries) {
         const currency = (entry.currency || 'USD').toUpperCase();
         if (!(currency in rateCache)) {
-          rateCache[currency] = parseForexRate(html, currency);
+          rateCache[currency] = parseForexRate(forexText, currency);
         }
         const rate = rateCache[currency];
         if (!rate) {

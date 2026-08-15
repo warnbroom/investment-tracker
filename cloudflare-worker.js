@@ -24,6 +24,8 @@
 
 const ALLOWED_HOSTS = [
   'banggia.doji.vn',
+  'www.vietcombank.com.vn',
+  'vietcombank.com.vn',
   'giavang.org',
   'webgia.com',
   'api.fmarket.vn',
