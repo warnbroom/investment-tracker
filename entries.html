@@ -4,7 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Nhập liệu — Sổ Cái</title>
-<link rel="stylesheet" href="styles.css?v=15" />
+<link rel="stylesheet" href="styles.css?v=16" />
 <!-- PWA & icons -->
 <link rel="manifest" href="manifest.webmanifest" />
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png" />
@@ -792,21 +792,21 @@
       const editingClass = (currentEditId === e.id) ? ' style="background: rgba(184, 71, 31, 0.07);"' : '';
       html += `
         <tr data-id="${e.id}"${editingClass}>
-          <td><span class="type-tag ${e.type}">${typeLabel(e.type)}</span></td>
-          <td>
+          <td class="cell-type"><span class="type-tag ${e.type}">${typeLabel(e.type)}</span></td>
+          <td class="cell-name">
             <div>${escapeHtml(e.name || '')}</div>
             <div style="color:var(--ink-mute); font-size:0.72rem; margin-top:0.15rem;">${escapeHtml(getEntrySubLabel(e))}</div>
           </td>
-          <td class="hide-mobile" style="color:var(--ink-mute);">${formatDate(e.startDate || e.createdAt)}</td>
-          <td class="num-col hide-mobile">${buyUnitPrice}</td>
-          <td class="num-col hide-mobile">${qty}${qtyUnit ? ' <span style="color:var(--ink-mute); font-size:0.72rem;">' + qtyUnit + '</span>' : ''}</td>
-          <td class="num-col">${formatMoney(v.principal)}</td>
-          <td class="num-col hide-mobile">${currentUnitPrice}</td>
-          <td class="num-col ${gainClass}">${gainSign}${formatMoney(v.gain)}</td>
-          <td class="num-col">${formatMoney(v.currentValue)}</td>
-          <td class="num-col ${gainClass}">${gainSign}${formatPct(v.gainPct, false)}</td>
-          <td class="hide-mobile" style="color:var(--ink-mute); font-size:0.78rem;" title="${escapeHtml(note)}">${escapeHtml(noteShort)}</td>
-          <td style="white-space: nowrap;">
+          <td class="hide-mobile" data-label="Ngày mua" style="color:var(--ink-mute);">${formatDate(e.startDate || e.createdAt)}</td>
+          <td class="num-col hide-mobile" data-label="Đơn giá mua">${buyUnitPrice}</td>
+          <td class="num-col hide-mobile" data-label="Số lượng">${qty}${qtyUnit ? ' <span style="color:var(--ink-mute); font-size:0.72rem;">' + qtyUnit + '</span>' : ''}</td>
+          <td class="num-col" data-label="Tổng vốn">${formatMoney(v.principal)}</td>
+          <td class="num-col hide-mobile" data-label="Đơn giá hiện tại">${currentUnitPrice}</td>
+          <td class="num-col ${gainClass}" data-label="Lợi nhuận">${gainSign}${formatMoney(v.gain)}</td>
+          <td class="num-col" data-label="Tổng tài sản">${formatMoney(v.currentValue)}</td>
+          <td class="num-col ${gainClass}" data-label="Tỷ lệ ±">${gainSign}${formatPct(v.gainPct, false)}</td>
+          <td class="hide-mobile" data-label="Ghi chú" style="color:var(--ink-mute); font-size:0.78rem;" title="${escapeHtml(note)}">${escapeHtml(noteShort)}</td>
+          <td class="cell-actions" style="white-space: nowrap;">
             <button class="edit-btn" data-id="${e.id}" title="Sửa">✎</button>
             <button class="delete-btn" data-id="${e.id}" title="Xoá">✕</button>
           </td>

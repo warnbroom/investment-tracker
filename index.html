@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Sổ Cái — Danh mục Đầu tư</title>
 <meta name="description" content="Quản lý và theo dõi danh mục đầu tư cá nhân: tiền gửi, quỹ mở, vàng." />
-<link rel="stylesheet" href="styles.css?v=15" />
+<link rel="stylesheet" href="styles.css?v=16" />
 <!-- PWA & icons -->
 <link rel="manifest" href="manifest.webmanifest" />
 <link rel="icon" type="image/png" sizes="32x32" href="icon-32.png" />
@@ -304,12 +304,12 @@
       const gainSign = v.gain >= 0 ? '+' : '';
       html += `
         <tr>
-          <td><span class="type-tag ${e.type}">${typeLabel(e.type)}</span></td>
-          <td>${escapeHtml(name)}</td>
-          <td class="hide-mobile num-col" style="text-align:left; color:var(--ink-mute);">${formatDate(date)}</td>
-          <td class="num-col">${formatMoney(v.principal)}</td>
-          <td class="num-col">${formatMoney(v.currentValue)}</td>
-          <td class="num-col ${gainClass}">${gainSign}${formatPct(v.gainPct, false)}</td>
+          <td class="cell-type"><span class="type-tag ${e.type}">${typeLabel(e.type)}</span></td>
+          <td class="cell-name">${escapeHtml(name)}</td>
+          <td class="hide-mobile num-col" data-label="Ngày" style="text-align:left; color:var(--ink-mute);">${formatDate(date)}</td>
+          <td class="num-col" data-label="Vốn gốc">${formatMoney(v.principal)}</td>
+          <td class="num-col" data-label="Giá trị hiện tại">${formatMoney(v.currentValue)}</td>
+          <td class="num-col ${gainClass}" data-label="Lợi nhuận">${gainSign}${formatPct(v.gainPct, false)}</td>
         </tr>`;
     });
     html += '</tbody></table>';

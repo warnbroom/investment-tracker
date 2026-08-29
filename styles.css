@@ -1185,3 +1185,83 @@ footer {
   .section-head { flex-direction: column; align-items: flex-start; gap: 0.5rem; }
   .alloc-legend { gap: 1rem; }
 }
+
+/* ==========================================================================
+   Mobile: biến bảng dữ liệu thành thẻ (card) — mỗi dòng 1 thẻ với cặp
+   nhãn : giá trị xếp dọc. Dễ đọc hơn nhiều so với bảng cuộn ngang.
+   ========================================================================== */
+@media (max-width: 680px) {
+  .ledger-table { font-size: 0.9rem; border-top: none; }
+  .ledger-table thead { display: none; }
+  .ledger-table, .ledger-table tbody { display: block; width: 100%; }
+
+  .ledger-table tr {
+    display: block;
+    padding: 0.95rem 1.05rem 0.75rem;
+    margin-bottom: 0.9rem;
+    background: var(--paper);
+    border: 1px solid var(--rule-strong);
+    border-left: 3px solid var(--accent);
+  }
+  .ledger-table tbody tr:hover { background: var(--paper); }
+
+  /* Ô dữ liệu: nhãn (trái) — giá trị (phải) trên cùng 1 hàng.
+     Dùng margin-right:auto trên nhãn (thay cho space-between) để số + đơn
+     vị (vd "5 chỉ") nằm sát nhau bên phải thay vì bị tách rời. */
+  .ledger-table td {
+    display: flex;
+    align-items: baseline;
+    gap: 0.35rem;
+    padding: 0.32rem 0 !important;
+    border: none;
+    text-align: right;
+  }
+  .ledger-table td.num-col { text-align: right; }
+  .ledger-table td::before {
+    content: attr(data-label);
+    margin-right: auto;
+    font-family: var(--font-mono);
+    font-size: 0.64rem;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--ink-mute);
+    font-weight: 500;
+    text-align: left;
+    flex: 0 0 auto;
+    white-space: nowrap;
+    align-self: center;
+  }
+
+  /* Hiện lại các cột bị ẩn ở chế độ bảng — trong thẻ có đủ chỗ dọc */
+  .ledger-table .hide-mobile { display: flex; }
+
+  /* Header của thẻ: loại + tên xếp trên cùng, không có nhãn */
+  .ledger-table td.cell-type,
+  .ledger-table td.cell-name,
+  .ledger-table td.cell-actions { display: block; text-align: left; }
+  .ledger-table td.cell-type::before,
+  .ledger-table td.cell-name::before,
+  .ledger-table td.cell-actions::before { content: none; }
+
+  .ledger-table td.cell-type { padding: 0 0 0.5rem !important; }
+  .ledger-table td.cell-name {
+    font-family: var(--font-display);
+    font-size: 1.1rem;
+    line-height: 1.25;
+    padding: 0 0 0.6rem !important;
+    margin-bottom: 0.4rem;
+    border-bottom: 1px solid var(--rule);
+  }
+  .ledger-table td.cell-actions {
+    text-align: right;
+    padding: 0.6rem 0 0 !important;
+    margin-top: 0.45rem;
+    border-top: 1px solid var(--rule);
+  }
+  .ledger-table td.cell-actions .edit-btn,
+  .ledger-table td.cell-actions .delete-btn { font-size: 1rem; padding: 0.3rem 0.7rem; }
+
+  /* Nhấn mạnh 2 dòng quan trọng */
+  .ledger-table td[data-label="Tổng tài sản"],
+  .ledger-table td[data-label="Giá trị hiện tại"] { font-weight: 600; }
+}
